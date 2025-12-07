@@ -15,7 +15,7 @@ async function aliveCommand(sock, chatId, message) {
         await sock.sendMessage(chatId, {
             text: message1,
             contextInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
+                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                     newsletterName: 'BUGFIXED-SULEXH-XMD',
                     serverMessageId: -1
                 }

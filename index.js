@@ -10,7 +10,7 @@ const chalk = require('chalk')
 const FileType = require('file-type')
 const path = require('path')
 const axios = require('axios')
-const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main');
+const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main')
 const PhoneNumber = require('awesome-phonenumber')
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/exif')
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetch, await, sleep, reSize } = require('./lib/myfunc')
@@ -111,16 +111,18 @@ async function startXeonBotInc() {
 
         // MAIN MESSAGE HANDLER
         XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
+            let mek = null
             try {
-                const mek = chatUpdate.messages[0]
-                if (!mek.message) return
+                mek = chatUpdate.messages[0]
+                if (!mek?.message) return
+
                 mek.message =
                     (Object.keys(mek.message)[0] === 'ephemeralMessage')
                         ? mek.message.ephemeralMessage.message
                         : mek.message
 
                 // Status handler
-                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                if (mek.key?.remoteJid === 'status@broadcast') {
                     await handleStatus(XeonBotInc, chatUpdate)
                     return
                 }
@@ -136,7 +138,7 @@ async function startXeonBotInc() {
                 if (mek.key.id.startsWith('BAE5') &&
                     mek.key.id.length === 16) return
 
-                XeonBotInc.msgRetryCounterCache.clear()
+                msgRetryCounterCache.clear()
 
                 await handleMessages(XeonBotInc, chatUpdate, true)
 
@@ -146,12 +148,7 @@ async function startXeonBotInc() {
                 try {
                     if (mek?.key?.remoteJid) {
                         await XeonBotInc.sendMessage(mek.key.remoteJid, {
-                            text: '❌ An error occurred while processing your message.',
-                            contextInfo: {
-                                newsletterJid: '0029VbAD3222f3EIZyXe6w16@newsletter',
-                                newsletterName: 'Bugfixed Sulexh Xmd',
-                                serverMessageId: -1
-                            }
+                            text: '❌ An error occurred while processing your message.'
                         })
                     }
                 } catch { }
@@ -212,9 +209,7 @@ async function startXeonBotInc() {
             if (global.phoneNumber) {
                 phone = global.phoneNumber
             } else {
-                phone = await question(
-                    chalk.greenBright("Enter your WhatsApp number (e.g. 254712345678): ")
-                )
+                phone = await question(chalk.greenBright("Enter your WhatsApp number (e.g. 254712345678): "))
             }
 
             phone = phone.replace(/\D/g, '')
@@ -247,7 +242,6 @@ async function startXeonBotInc() {
             if (connection === 'open') {
                 console.log(chalk.green("Bot connected successfully!"))
                 const botNumber = XeonBotInc.user.id.split(':')[0] + '@s.whatsapp.net'
-
                 try {
                     await XeonBotInc.sendMessage(botNumber, {
                         text: `🤖 Bot Connected Successfully!`
@@ -272,7 +266,7 @@ async function startXeonBotInc() {
         })
 
         // ANTI-CALL
-        const antiCallNotified = new Set();
+        const antiCallNotified = new Set()
 
         XeonBotInc.ev.on("call", async (calls) => {
             try {

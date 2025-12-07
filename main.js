@@ -156,8 +156,7 @@ const channelInfo = {
             newsletterName: 'BUGFIXED SULEXH XMD',
             serverMessageId: -1
         }
-    }
-};
+  };
 
 async function handleMessages(sock, messageUpdate, printLog) {
     try {

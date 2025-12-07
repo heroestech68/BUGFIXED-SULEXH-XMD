@@ -234,7 +234,7 @@ Join our channel for updates:`;
                 image: imageBuffer,
                 caption: helpMessage,
                 contextInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
+                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
@@ -245,7 +245,7 @@ Join our channel for updates:`;
             await sock.sendMessage(chatId, { 
                 text: helpMessage,
                 contextInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
+                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD by BUGFIXED-SULEXH-TECH',
                         serverMessageId: -1
                     } 

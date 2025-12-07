@@ -15,139 +15,150 @@ function normalizeType(input) {
 }
 
 async function sendAnimu(sock, chatId, message, type) {
-    const endpoint = `${ANIMU_BASE}/${type}`;
-    const res = await axios.get(endpoint);
-    const data = res.data || {};
+    try {
+        const endpoint = `${ANIMU_BASE}/${type}`;
+        const res = await axios.get(endpoint);
+        const data = res.data || {};
 
-    // Prefer link (gif/image). Send as sticker if applicable; fallback to image
-    // helper to convert media buffer to sticker webp
-    async function convertMediaToSticker(mediaBuffer, isAnimated) {
-        const tmpDir = path.join(process.cwd(), 'tmp');
-        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+        // Convert video/image to sticker (GIF or static)
+        async function convertMediaToSticker(mediaBuffer, isAnimated) {
+            const tmpDir = path.join(process.cwd(), 'tmp');
+            if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-        const inputExt = isAnimated ? 'gif' : 'jpg';
-        const input = path.join(tmpDir, `animu_${Date.now()}.${inputExt}`);
-        const output = path.join(tmpDir, `animu_${Date.now()}.webp`);
-        fs.writeFileSync(input, mediaBuffer);
+            const inputExt = isAnimated ? 'gif' : 'jpg';
+            const input = path.join(tmpDir, `animu_${Date.now()}.${inputExt}`);
+            const output = path.join(tmpDir, `animu_${Date.now()}.webp`);
 
-        const ffmpegCmd = isAnimated 
-            ? `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000,fps=15" -c:v libwebp -preset default -loop 0 -vsync 0 -pix_fmt yuva420p -quality 60 -compression_level 6 "${output}"`
-            : `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" -c:v libwebp -preset default -loop 0 -vsync 0 -pix_fmt yuva420p -quality 75 -compression_level 6 "${output}"`;
+            fs.writeFileSync(input, mediaBuffer);
 
-        await new Promise((resolve, reject) => {
-            exec(ffmpegCmd, (err) => (err ? reject(err) : resolve()));
-        });
+            const ffmpegCmd = isAnimated
+                ? `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000,fps=15" -c:v libwebp -preset default -loop 0 -vsync 0 -pix_fmt yuva420p -quality 60 -compression_level 6 "${output}"`
+                : `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" -c:v libwebp -preset default -pix_fmt yuva420p -quality 75 -compression_level 6 "${output}"`;
 
-        let webpBuffer = fs.readFileSync(output);
+            await new Promise((resolve, reject) => {
+                exec(ffmpegCmd, (err) => (err ? reject(err) : resolve()));
+            });
 
-        // Add sticker metadata
-        const img = new webp.Image();
-        await img.load(webpBuffer);
+            let webpBuffer = fs.readFileSync(output);
 
-        const json = {
-            'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
-            'sticker-pack-name': 'Anime Stickers',
-            'emojis': ['🎌']
-        };
-        const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
-        const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
-        const exif = Buffer.concat([exifAttr, jsonBuffer]);
-        exif.writeUIntLE(jsonBuffer.length, 14, 4);
-        img.exif = exif;
+            // Add EXIF metadata
+            const img = new webp.Image();
+            await img.load(webpBuffer);
 
-        const finalBuffer = await img.save(null);
+            const json = {
+                "sticker-pack-id": crypto.randomBytes(32).toString("hex"),
+                "sticker-pack-name": "Anime Stickers",
+                "emojis": ["🎌"]
+            };
 
-        try { fs.unlinkSync(input); } catch {}
-        try { fs.unlinkSync(output); } catch {}
-        return finalBuffer;
-    }
+            const exifAttr = Buffer.from([
+                0x49, 0x49, 0x2A, 0x00, 0x08, 0x00,
+                0x00, 0x00, 0x01, 0x00, 0x41, 0x57,
+                0x07, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x16, 0x00, 0x00, 0x00
+            ]);
 
-    if (data.link) {
-        const link = data.link;
-        const lower = link.toLowerCase();
-        const isGifLink = lower.endsWith('.gif');
-        const isImageLink = lower.match(/\.(jpg|jpeg|png|webp)$/);
+            const jsonBuffer = Buffer.from(JSON.stringify(json), "utf8");
+            const exif = Buffer.concat([exifAttr, jsonBuffer]);
+            exif.writeUIntLE(jsonBuffer.length, 14, 4);
+            img.exif = exif;
 
-        // Convert all media (GIFs and images) to stickers
-        if (isGifLink || isImageLink) {
+            const finalBuffer = await img.save(null);
+
+            try { fs.unlinkSync(input); } catch {}
+            try { fs.unlinkSync(output); } catch {}
+
+            return finalBuffer;
+        }
+
+        if (data.link) {
+            const link = data.link.toLowerCase();
+            const isGif = link.endsWith(".gif");
+            const isImage = /\.(jpg|jpeg|png|webp)$/i.test(link);
+
+            if (isGif || isImage) {
+                try {
+                    const resp = await axios.get(data.link, {
+                        responseType: "arraybuffer",
+                        timeout: 15000,
+                        headers: { "User-Agent": "Mozilla/5.0" }
+                    });
+
+                    const mediaBuf = Buffer.from(resp.data);
+                    const stickerBuf = await convertMediaToSticker(mediaBuf, isGif);
+
+                    await sock.sendMessage(chatId, { sticker: stickerBuf }, { quoted: message });
+                    return;
+
+                } catch (err) {
+                    console.error("Sticker conversion failed:", err);
+                }
+            }
+
+            // If fail → send as image
             try {
-                const resp = await axios.get(link, {
-                    responseType: 'arraybuffer',
-                    timeout: 15000,
-                    headers: { 'User-Agent': 'Mozilla/5.0' }
-                });
-                const mediaBuf = Buffer.from(resp.data);
-                const stickerBuf = await convertMediaToSticker(mediaBuf, isGifLink);
                 await sock.sendMessage(
                     chatId,
-                    { sticker: stickerBuf },
+                    { image: { url: data.link }, caption: `anime: ${type}` },
                     { quoted: message }
                 );
                 return;
-            } catch (error) {
-                console.error('Error converting media to sticker:', error);
-            }
+            } catch {}
         }
 
-        // Fallback to image if conversion fails
-        try {
-            await sock.sendMessage(
-                chatId,
-                { image: { url: link }, caption: `anime: ${type}` },
-                { quoted: message }
-            );
+        if (data.quote) {
+            await sock.sendMessage(chatId, { text: data.quote }, { quoted: message });
             return;
-        } catch {}
-    }
-    if (data.quote) {
-        await sock.sendMessage(
-            chatId,
-            { text: data.quote },
-            { quoted: message }
-        );
-        return;
-    }
+        }
 
-    await sock.sendMessage(
-        chatId,
-        { text: '❌ Failed to fetch animu.' },
-        { quoted: message }
-    );
+        await sock.sendMessage(chatId, { text: "❌ Failed to fetch animu." }, { quoted: message });
+
+    } catch (error) {
+        console.error("Animu fetch error:", error);
+        await sock.sendMessage(chatId, { text: "❌ Error fetching animu." }, { quoted: message });
+    }
 }
 
 async function animeCommand(sock, chatId, message, args) {
-    const subArg = args && args[0] ? args[0] : '';
+    const subArg = args?.[0] || "";
     const sub = normalizeType(subArg);
 
     const supported = [
-        'nom', 'poke', 'cry', 'kiss', 'pat', 'hug', 'wink', 'face-palm', 'quote'
+        "nom", "poke", "cry", "kiss", "pat",
+        "hug", "wink", "face-palm", "quote"
     ];
 
     try {
         if (!sub) {
-            // Fetch supported types from API for dynamic help
             try {
                 const res = await axios.get(ANIMU_BASE);
-                const apiTypes = res.data && res.data.types ? res.data.types.map(s => s.replace('/animu/', '')).join(', ') : supported.join(', ');
-                await sock.sendMessage(chatId, { text: `Usage: .animu <type>\nTypes: ${apiTypes}` }, { quoted: message });
+                const types = res.data?.types
+                    ? res.data.types.map(s => s.replace("/animu/", "")).join(", ")
+                    : supported.join(", ");
+
+                await sock.sendMessage(chatId, { text: `Usage: .animu <type>\nTypes: ${types}` }, { quoted: message });
+
             } catch {
-                await sock.sendMessage(chatId, { text: `Usage: .animu <type>\nTypes: ${supported.join(', ')}` }, { quoted: message });
+                await sock.sendMessage(chatId, { text: `Usage: .animu <type>\nTypes: ${supported.join(", ")}` }, { quoted: message });
             }
             return;
         }
 
         if (!supported.includes(sub)) {
-            await sock.sendMessage(chatId, { text: `❌ Unsupported type: ${sub}. Try one of: ${supported.join(', ')}` }, { quoted: message });
+            await sock.sendMessage(
+                chatId,
+                { text: `❌ Unsupported type: ${sub}\nTry: ${supported.join(", ")}` },
+                { quoted: message }
+            );
             return;
         }
 
         await sendAnimu(sock, chatId, message, sub);
+
     } catch (err) {
-        console.error('Error in animu command:', err);
-        await sock.sendMessage(chatId, { text: '❌ An error occurred while fetching animu.' }, { quoted: message });
+        console.error("Anime command error:", err);
+        await sock.sendMessage(chatId, { text: "❌ An error occurred while fetching animu." }, { quoted: message });
     }
 }
 
 module.exports = { animeCommand };
-
-

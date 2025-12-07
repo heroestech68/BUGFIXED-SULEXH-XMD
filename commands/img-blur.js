@@ -25,16 +25,16 @@ async function blurCommand(sock, chatId, message, quotedMessage) {
             imageBuffer = await downloadMediaMessage(
                 quoted,
                 'buffer',
-                { },
-                { }
+                {},
+                {}
             );
         } else if (message.message?.imageMessage) {
             // If image is in current message
             imageBuffer = await downloadMediaMessage(
                 message,
                 'buffer',
-                { },
-                { }
+                {},
+                {}
             );
         } else {
             await sock.sendMessage(chatId, { 
@@ -45,27 +45,26 @@ async function blurCommand(sock, chatId, message, quotedMessage) {
 
         // Resize and optimize image
         const resizedImage = await sharp(imageBuffer)
-            .resize(800, 800, { // Resize to max 800x800
+            .resize(800, 800, { 
                 fit: 'inside',
                 withoutEnlargement: true
             })
-            .jpeg({ quality: 80 }) // Convert to JPEG with 80% quality
+            .jpeg({ quality: 80 })
             .toBuffer();
 
-        // Apply blur effect directly using sharp
+        // Apply blur effect
         const blurredImage = await sharp(resizedImage)
-            .blur(10) // Blur radius of 10
+            .blur(10)
             .toBuffer();
 
-        // Send the blurred image
+        // Send blurred image
         await sock.sendMessage(chatId, {
             image: blurredImage,
             caption: '*[ ✔ ] Image Blurred Successfully*',
             contextInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'BUGFIXED-SULEXH-XMD',
-                    serverMessageId: -1
-                }
+                newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                newsletterName: 'BUGFIXED-SULEXH-XMD',
+                serverMessageId: -1
             }
         }, { quoted: message });
 
@@ -77,4 +76,4 @@ async function blurCommand(sock, chatId, message, quotedMessage) {
     }
 }
 
-module.exports = blurCommand; 
+module.exports = blurCommand;

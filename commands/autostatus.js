@@ -8,8 +8,8 @@ const channelInfo = {
             newsletterName: 'BUGFIXED-SULEXH-XMD',
             serverMessageId: -1
         }
-    }
-};
+    };
+
 
 // Path to store auto status configuration
 const configPath = path.join(__dirname, '../data/autoStatus.json');

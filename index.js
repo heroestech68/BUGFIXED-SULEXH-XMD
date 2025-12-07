@@ -3,7 +3,7 @@
  * Copyright (c) 2024
  */
 
-require('./settings')
+const settings = require('./settings')
 const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
@@ -13,7 +13,8 @@ const axios = require('axios')
 const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main')
 const PhoneNumber = require('awesome-phonenumber')
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/exif')
-const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetch, await, sleep, reSize } = require('./lib/myfunc')
+// Note: removed `await` from destructure (reserved word)
+const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetch, sleep, reSize } = require('./lib/myfunc')
 
 const {
     default: makeWASocket,
@@ -35,7 +36,6 @@ const { join } = require('path')
 const store = require('./lib/lightweight_store')
 
 store.readFromFile()
-const settings = require('./settings')
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 
 // Garbage collection
@@ -81,6 +81,7 @@ async function startXeonBotInc() {
     try {
         let { version } = await fetchLatestBaileysVersion()
         const { state, saveCreds } = await useMultiFileAuthState(`./session`)
+        // keep NodeCache in case other parts expect it
         const msgRetryCounterCache = new NodeCache()
 
         const XeonBotInc = makeWASocket({
@@ -96,62 +97,83 @@ async function startXeonBotInc() {
             generateHighQualityLinkPreview: true,
             syncFullHistory: false,
             getMessage: async (key) => {
-                let jid = jidNormalizedUser(key.remoteJid)
-                let msg = await store.loadMessage(jid, key.id)
-                return msg?.message || ""
+                try {
+                    let jid = jidNormalizedUser(key.remoteJid)
+                    let msg = await store.loadMessage(jid, key.id)
+                    return msg?.message || ""
+                } catch (e) {
+                    return ""
+                }
             },
+            // Baileys option (keep, but do not assume socket will expose clear())
             msgRetryCounterCache,
             defaultQueryTimeoutMs: 60000,
             connectTimeoutMs: 60000,
             keepAliveIntervalMs: 10000
         })
 
+        // make cache available on socket if some other code expects it
+        XeonBotInc.msgRetryCounterCache = msgRetryCounterCache
+
         XeonBotInc.ev.on('creds.update', saveCreds)
         store.bind(XeonBotInc.ev)
 
-        // MAIN MESSAGE HANDLER
-        XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
-            let mek = null
+        /**
+         * MAIN MESSAGE HANDLER
+         * Uses the modern upsert signature and is defensive against undefined shapes.
+         */
+        XeonBotInc.ev.on('messages.upsert', async (upsert) => {
+            let msg = null
             try {
-                mek = chatUpdate.messages[0]
-                if (!mek?.message) return
+                // upsert can be { messages, type } or older shape. normalize:
+                const messages = upsert?.messages || upsert
+                const type = upsert?.type || (Array.isArray(messages) ? 'notify' : undefined)
+                msg = Array.isArray(messages) ? messages[0] : messages
 
-                mek.message =
-                    (Object.keys(mek.message)[0] === 'ephemeralMessage')
-                        ? mek.message.ephemeralMessage.message
-                        : mek.message
+                if (!msg) return
+                if (!msg.message) return
 
-                // Status handler
-                if (mek.key?.remoteJid === 'status@broadcast') {
-                    await handleStatus(XeonBotInc, chatUpdate)
+                // ignore status broadcasts
+                if (msg.key?.remoteJid === 'status@broadcast') {
+                    await handleStatus(XeonBotInc, upsert)
                     return
                 }
 
-                if (!XeonBotInc.public &&
-                    !mek.key.fromMe &&
-                    chatUpdate.type === 'notify') {
-
-                    const isGroup = mek.key.remoteJid.endsWith('@g.us')
+                // skip if private mode and message is not from me
+                if (!XeonBotInc.public && !msg.key?.fromMe && type === 'notify') {
+                    const isGroup = msg.key?.remoteJid?.endsWith?.('@g.us')
                     if (!isGroup) return
                 }
 
-                if (mek.key.id.startsWith('BAE5') &&
-                    mek.key.id.length === 16) return
+                // filter out ephemeral wrapper if present
+                if (msg.message && Object.keys(msg.message)[0] === 'ephemeralMessage') {
+                    msg.message = msg.message.ephemeralMessage?.message ?? msg.message
+                }
 
-                msgRetryCounterCache.clear()
+                // ignore some system IDs (same check as before)
+                if (msg.key?.id && typeof msg.key.id === 'string' && msg.key.id.startsWith('BAE5') && msg.key.id.length === 16) return
 
+                // Do NOT call msgRetryCounterCache.clear() here — in some Baileys versions the object on socket may not expose clear.
+                // If you do want to reset local cache, call the instance directly:
+                // msgRetryCounterCache.flushAll && msgRetryCounterCache.flushAll()
+
+                // Build a chatUpdate object similar to original code so handleMessages still works
+                const chatUpdate = { messages: [msg], type }
                 await handleMessages(XeonBotInc, chatUpdate, true)
 
             } catch (err) {
                 console.error("Error in messages.upsert:", err)
 
                 try {
-                    if (mek?.key?.remoteJid) {
-                        await XeonBotInc.sendMessage(mek.key.remoteJid, {
+                    if (msg?.key?.remoteJid) {
+                        // send a user-friendly message (no newsletter context to avoid broadcast-specific metadata)
+                        await XeonBotInc.sendMessage(msg.key.remoteJid, {
                             text: '❌ An error occurred while processing your message.'
                         })
                     }
-                } catch { }
+                } catch (e) {
+                    // swallow secondary errors
+                }
             }
         })
 
@@ -160,7 +182,7 @@ async function startXeonBotInc() {
             if (!jid) return jid
             if (/:\d+@/gi.test(jid)) {
                 let decode = jidDecode(jid) || {}
-                return decode.user + '@' + decode.server
+                return (decode.user ? decode.user + '@' + decode.server : jid)
             } else return jid
         }
 
@@ -175,33 +197,32 @@ async function startXeonBotInc() {
             }
         })
 
-        // Get name
+        // Get name utility
         XeonBotInc.getName = (jid, withoutContact = false) => {
             jid = XeonBotInc.decodeJid(jid)
             withoutContact = XeonBotInc.withoutContact || withoutContact
 
-            let contact
             if (jid.endsWith("@g.us")) {
                 return new Promise(async (resolve) => {
-                    contact = store.contacts[jid] || await XeonBotInc.groupMetadata(jid) || {}
-                    resolve(contact.name || contact.subject)
+                    const contact = store.contacts[jid] || await XeonBotInc.groupMetadata(jid).catch(() => ({})) || {}
+                    resolve(contact.name || contact.subject || jid)
                 })
             } else {
-                contact =
+                const contact =
                     jid === '0@s.whatsapp.net'
                         ? { id: jid, name: 'WhatsApp' }
-                        : jid === XeonBotInc.decodeJid(XeonBotInc.user.id)
+                        : jid === XeonBotInc.decodeJid(XeonBotInc.user?.id || '')
                             ? XeonBotInc.user
                             : store.contacts[jid] || {}
 
-                return (!withoutContact && contact.name) || contact.subject
+                return (!withoutContact && contact.name) || contact.subject || jid
             }
         }
 
         XeonBotInc.public = true
         XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
 
-        // Pairing code
+        // Pairing code flow (unchanged, with validation)
         if (pairingCode && !state.creds.registered) {
             if (useMobile) throw new Error('Cannot use pairing code with mobile api')
 
@@ -241,11 +262,13 @@ async function startXeonBotInc() {
 
             if (connection === 'open') {
                 console.log(chalk.green("Bot connected successfully!"))
-                const botNumber = XeonBotInc.user.id.split(':')[0] + '@s.whatsapp.net'
+                const botNumber = XeonBotInc.user?.id?.split?.(':')?.[0] + '@s.whatsapp.net'
                 try {
-                    await XeonBotInc.sendMessage(botNumber, {
-                        text: `🤖 Bot Connected Successfully!`
-                    })
+                    if (botNumber) {
+                        await XeonBotInc.sendMessage(botNumber, {
+                            text: `🤖 Bot Connected Successfully!`
+                        })
+                    }
                 } catch { }
             }
 
@@ -260,6 +283,8 @@ async function startXeonBotInc() {
 
                 if (shouldReconnect) {
                     console.log("Reconnecting...")
+                    // small delay before reconnecting
+                    await delay(2000).catch(() => { })
                     startXeonBotInc()
                 }
             }
@@ -272,7 +297,7 @@ async function startXeonBotInc() {
             try {
                 const { readState: readAnticallState } = require('./commands/anticall')
                 const state = readAnticallState()
-                if (!state.enabled) return
+                if (!state?.enabled) return
 
                 for (const call of calls) {
                     const callerJid = call.from || call.peerJid || call.chatId
@@ -303,7 +328,7 @@ async function startXeonBotInc() {
             await handleGroupParticipantUpdate(XeonBotInc, update)
         })
 
-        // Status updates
+        // Status updates & reactions
         XeonBotInc.ev.on("status.update", async (s) => handleStatus(XeonBotInc, s))
         XeonBotInc.ev.on("messages.reaction", async (s) => handleStatus(XeonBotInc, s))
 
@@ -311,7 +336,7 @@ async function startXeonBotInc() {
 
     } catch (e) {
         console.error("Error:", e)
-        delay(2000)
+        await delay(2000).catch(() => { })
         startXeonBotInc()
     }
 }

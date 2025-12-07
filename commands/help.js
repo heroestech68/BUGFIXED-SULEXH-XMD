@@ -222,36 +222,41 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .repo
 ╚═══════════════════╝
 
-Join our channel for updates:`;
+Join our channel for updates:
+https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16
+`;
 
     try {
         const imagePath = path.join(__dirname, '../assets/bot_image.jpg');
-        
+
         if (fs.existsSync(imagePath)) {
             const imageBuffer = fs.readFileSync(imagePath);
-            
-            await sock.sendMessage(chatId, {
-                image: imageBuffer,
-                caption: helpMessage,
-                contextInfo: {
+
+            await sock.sendMessage(
+                chatId,
+                {
+                    image: imageBuffer,
+                    caption: helpMessage,
+                    contextInfo: {
                         newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
-                }
-            },{ quoted: message });
+                },
+                { quoted: message }
+            );
+
         } else {
-            console.error('Bot image not found at:', imagePath);
-            await sock.sendMessage(chatId, { 
+            await sock.sendMessage(chatId, {
                 text: helpMessage,
                 contextInfo: {
-                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                        newsletterName: 'BUGFIXED-SULEXH-XMD by BUGFIXED-SULEXH-TECH',
-                        serverMessageId: -1
-                    } 
+                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                    newsletterName: 'BUGFIXED-SULEXH-XMD by BUGFIXED-SULEXH-TECH',
+                    serverMessageId: -1
                 }
             });
         }
+
     } catch (error) {
         console.error('Error in help command:', error);
         await sock.sendMessage(chatId, { text: helpMessage });

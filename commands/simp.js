@@ -34,10 +34,9 @@ async function simpCommand(sock, chatId, quotedMsg, mentionedJid, sender) {
             image: imageBuffer,
             caption: '*your religion is simping*',
             contextInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'BUGFIXED-SULEXH-XMD',
-                    serverMessageId: -1
-                }
+                newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                newsletterName: 'BUGFIXED-SULEXH-XMD',
+                serverMessageId: -1
             }
         });
 
@@ -46,13 +45,12 @@ async function simpCommand(sock, chatId, quotedMsg, mentionedJid, sender) {
         await sock.sendMessage(chatId, { 
             text: '❌ Sorry, I couldn\'t generate the simp card. Please try again later!',
             contextInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'BUGFIXED-SULEXH-XMD',
-                    serverMessageId: -1
-                }
+                newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                newsletterName: 'BUGFIXED-SULEXH-XMD',
+                serverMessageId: -1
             }
         });
     }
 }
 
-module.exports = { simpCommand }; 
+module.exports = { simpCommand };

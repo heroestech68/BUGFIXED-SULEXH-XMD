@@ -1,13 +1,12 @@
 /**
- * BUGFIXED-SULEXH-TECH — PAIR CODE VERSION
- * No QR | Auto Reconnect | Safe Session
+ * BUGFIXED-SULEXH-TECH — QR + PAIR CODE VERSION
+ * QR Optional | Pair Code Optional | Auto Reconnect | Safe Session
  */
 
 const fs = require("fs");
 const chalk = require("chalk");
 const pino = require("pino");
 const { Boom } = require("@hapi/boom");
-const NodeCache = require("node-cache");
 
 const settings = require("./settings");
 const store = require("./lib/lightweight_store");
@@ -23,9 +22,8 @@ const {
     useMultiFileAuthState,
     fetchLatestBaileysVersion,
     DisconnectReason,
-    jidNormalizedUser,
-    makeCacheableSignalKeyStore,
-    delay
+    delay,
+    makeCacheableSignalKeyStore
 } = require("@whiskeysockets/baileys");
 
 /* ---------------- INIT SESSION FOLDER ---------------- */
@@ -43,8 +41,12 @@ async function startBot() {
         const sock = makeWASocket({
             version,
             logger: pino({ level: "silent" }),
-            printQRInTerminal: false, // ❌ NO QR!
+
+            // ✅ QR WILL SHOW IN TERMINAL NOW
+            printQRInTerminal: true,
+
             browser: ["BUGFIXED-SULEXH-TECH", "Chrome", "1.0"],
+
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(
@@ -57,11 +59,18 @@ async function startBot() {
         sock.ev.on("creds.update", saveCreds);
         store.bind(sock.ev);
 
-        /* ------------ PAIRING CODE HANDLER ------------ */
+        /* ------------ OPTIONAL PAIR CODE  ------------ */
         if (!sock.authState.creds.registered) {
-            const code = await sock.requestPairingCode(settings.ownerNumber);
-            console.log("\n\n📌 *YOUR PAIRING CODE* (insert into WhatsApp Web):\n");
-            console.log(chalk.greenBright(`👉 ${code}\n\n`));
+            console.log(chalk.blue("\nIf you prefer pair code instead of QR:"));
+            console.log(chalk.green("Requesting Pair Code...\n"));
+
+            try {
+                const code = await sock.requestPairingCode(settings.ownerNumber);
+                console.log(chalk.yellow("📌 Your Pairing Code:"));
+                console.log(chalk.greenBright(`👉 ${code}\n`));
+            } catch (err) {
+                console.log(chalk.red("Pair code unavailable, use QR instead."));
+            }
         }
 
         /* ------------ MESSAGE HANDLER ------------ */
@@ -100,8 +109,9 @@ async function startBot() {
 
             if (connection === "close") {
                 const code = new Boom(lastDisconnect.error).output.statusCode;
+
                 if (code === DisconnectReason.loggedOut) {
-                    console.log("❌ Session expired — need new pairing code");
+                    console.log("❌ Session expired — need new QR or Pair Code");
                     return startBot();
                 }
 

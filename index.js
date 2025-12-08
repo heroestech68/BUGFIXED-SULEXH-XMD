@@ -92,6 +92,9 @@ async function safeStart() {
 /* ------------------------------ Main --------------------------------- */
 async function startXeonBotInc() {
     try {
+        // ensure session folder exists
+        if (!fs.existsSync('./session')) fs.mkdirSync('./session')
+
         let { version } = await fetchLatestBaileysVersion()
         const { state, saveCreds } = await useMultiFileAuthState(`./session`)
         const msgRetryCounterCache = new NodeCache()
@@ -176,6 +179,10 @@ async function startXeonBotInc() {
         })
 
         /* ----------------------- connection.update ---------------------- */
+        // safer connection handler with auto-restart (no session deletion)
+        let reconnectAttempts = 0
+        let notified401 = false
+
         XeonBotInc.ev.on("connection.update", async (update) => {
             const { connection, lastDisconnect, qr } = update
 
@@ -183,6 +190,8 @@ async function startXeonBotInc() {
 
             if (connection === 'open') {
                 console.log(chalk.green("Bot connected successfully!"))
+                reconnectAttempts = 0
+                notified401 = false
                 const botNumber = XeonBotInc.user?.id?.split?.(":")?.[0] + "@s.whatsapp.net"
                 try {
                     if (botNumber) await XeonBotInc.sendMessage(botNumber, { text: `🤖 Bot Connected Successfully!` }).catch(() => {})
@@ -190,12 +199,41 @@ async function startXeonBotInc() {
             }
 
             if (connection === "close") {
-                const reason = lastDisconnect?.error ? new Boom(lastDisconnect.error).output.statusCode : null
-                console.log("Connection closed - reason:", reason)
+                const statusCode = lastDisconnect?.error ? new Boom(lastDisconnect.error).output.statusCode : null
+                console.log("Connection closed - reason:", statusCode)
 
-                // ALWAYS attempt restart without deleting session
-                console.log("Auto-restarting bot in 2s (session preserved)...")
-                await delay(2000).catch(() => {})
+                if (statusCode === 401) {
+                    // credentials rejected
+                    console.error("⚠️ Received 401 from WhatsApp: saved credentials rejected.")
+                    if (!notified401) {
+                        notified401 = true
+                        try {
+                            const ownerJid = (Array.isArray(owner) && owner[0]) ? owner[0] : (owner?.[0] || owner)
+                            if (ownerJid && XeonBotInc?.user) {
+                                await XeonBotInc.sendMessage(ownerJid, {
+                                    text: "⚠️ Bot received 401 (credentials rejected). Manual re-authentication required."
+                                }).catch(()=>{})
+                            }
+                        } catch {}
+                    }
+
+                    reconnectAttempts++
+                    if (reconnectAttempts <= 3) {
+                        const wait = Math.min(60, 2 ** reconnectAttempts) * 1000
+                        console.log(`Attempting restart in ${wait/1000}s (attempt ${reconnectAttempts})...`)
+                        await delay(wait).catch(()=>{})
+                        safeStart()
+                    } else {
+                        console.log("Max reconnect attempts reached for 401 — stopping auto restarts. Please re-authenticate manually.")
+                    }
+                    return
+                }
+
+                // other reasons: backoff retry
+                reconnectAttempts++
+                const wait = Math.min(60, 2 ** reconnectAttempts) * 1000
+                console.log(`Connection dropped (reason ${statusCode}). Auto-restarting in ${wait/1000}s...`)
+                await delay(wait).catch(()=>{})
                 safeStart()
             }
         })

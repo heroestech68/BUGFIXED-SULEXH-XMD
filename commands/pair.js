@@ -7,7 +7,7 @@ async function pairCommand(sock, chatId, message, q) {
             return await sock.sendMessage(chatId, {
                 text: "Please provide valid WhatsApp number\nExample: .pair 91702395XXXX",
                 contextInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
+                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
@@ -23,7 +23,7 @@ async function pairCommand(sock, chatId, message, q) {
             return await sock.sendMessage(chatId, {
                 text: "Invalid number❌️ Please use the correct format!",
                 contextInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
+                        newsletterJ: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
@@ -39,7 +39,7 @@ async function pairCommand(sock, chatId, message, q) {
                 return await sock.sendMessage(chatId, {
                     text: `That number is not registered on WhatsApp❗️`,
                     contextInfo: {
-                            newsletterJid: '120363161513685998@newsletter',
+                            newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                             newsletterName: 'BUGFIXED-SULEXH-XMD',
                             serverMessageId: -1
                         }

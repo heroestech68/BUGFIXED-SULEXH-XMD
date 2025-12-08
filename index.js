@@ -1,5 +1,5 @@
 /**
- * BUGFIXED-SULEXH-TECH — Final Index.js
+ * BUGFIXED-SULEXH-TECH — Final Index.js (QR FIXED)
  * Auto-pair, auto-reconnect, non-expiring session, safe handlers
  */
 
@@ -20,18 +20,18 @@ const {
     useMultiFileAuthState,
     fetchLatestBaileysVersion,
     DisconnectReason,
-    jidDecode,
     jidNormalizedUser,
     makeCacheableSignalKeyStore,
     delay
 } = require("@whiskeysockets/baileys");
 
 const NodeCache = require("node-cache");
+const qrcode = require("qrcode-terminal");
 
 /* ---------------- INIT SESSION FOLDER ---------------- */
 if (!fs.existsSync("./session")) fs.mkdirSync("./session");
 
-/* ---------------- STORE AUTO SAVE ---------------- */
+/* ---------------- STORE LOAD/SAVE ---------------- */
 store.readFromFile();
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000);
 
@@ -48,7 +48,7 @@ setInterval(() => {
 let lastActivity = Date.now();
 function touch() { lastActivity = Date.now(); }
 
-/* ---------------- SINGLE START PROTECTOR ---------------- */
+/* ---------------- START PROTECTOR ---------------- */
 let starting = false;
 async function safeStart() {
     if (starting) return;
@@ -68,7 +68,6 @@ async function startBot() {
         const sock = makeWASocket({
             version,
             logger: pino({ level: "silent" }),
-            printQRInTerminal: true, // IMPORTANT: this is your Katabump QR
             browser: ["BUGFIXED-SULEXH-TECH", "Chrome", "1.0"],
             auth: {
                 creds: state.creds,
@@ -77,15 +76,6 @@ async function startBot() {
             markOnlineOnConnect: true,
             generateHighQualityLinkPreview: true,
             syncFullHistory: false,
-            getMessage: async (key) => {
-                try {
-                    let jid = jidNormalizedUser(key.remoteJid);
-                    let msg = await store.loadMessage(jid, key.id);
-                    return msg?.message || "";
-                } catch {
-                    return "";
-                }
-            },
             msgRetryCounterCache: cache,
             keepAliveIntervalMs: 10000
         });
@@ -99,16 +89,13 @@ async function startBot() {
 
         /* -------------- MESSAGE HANDLER -------------- */
         sock.ev.on("messages.upsert", async (update) => {
-            let msg;
             try {
-                msg = update.messages[0];
+                let msg = update.messages[0];
                 if (!msg?.message) return;
                 if (msg.key.remoteJid === "status@broadcast") return;
 
-                // remove ephemeral wrapper
-                if (msg.message.ephemeralMessage) {
+                if (msg.message.ephemeralMessage)
                     msg.message = msg.message.ephemeralMessage.message;
-                }
 
                 await handleMessages(sock, update, true);
             } catch (err) {
@@ -116,12 +103,12 @@ async function startBot() {
             }
         });
 
-        /* -------------- GROUP PARTICIPANTS -------------- */
+        /* -------------- GROUP EVENTS -------------- */
         sock.ev.on("group-participants.update", async (ev) => {
-            await handleGroupParticipantUpdate(sock, ev).catch(() => {});
+            handleGroupParticipantUpdate(sock, ev).catch(() => {});
         });
 
-        /* -------------- STATUS & REACT -------------- */
+        /* -------------- STATUS & REACTIONS -------------- */
         sock.ev.on("status.update", async (s) => handleStatus(sock, s).catch(() => {}));
         sock.ev.on("messages.reaction", async (s) => handleStatus(sock, s).catch(() => {}));
 
@@ -131,7 +118,11 @@ async function startBot() {
         sock.ev.on("connection.update", async (u) => {
             const { connection, lastDisconnect, qr } = u;
 
-            if (qr) console.log(chalk.yellow("📌 Scan QR in Katabump terminal"));
+            // --- REAL WORKING QR PRINTING ---
+            if (qr) {
+                console.log(chalk.yellow("📌 Scan this QR below:"));
+                qrcode.generate(qr, { small: true });
+            }
 
             if (connection === "open") {
                 attempts = 0;
@@ -142,35 +133,32 @@ async function startBot() {
                 const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
 
                 if (code === DisconnectReason.loggedOut) {
-                    console.log("❌ Logged out: session invalid.");
-                    console.log("Scan QR again in Katabump.");
+                    console.log("❌ Session expired, scan QR again.");
                     return safeStart();
                 }
 
-                // retry backoff
                 attempts++;
                 const wait = Math.min(60, 2 ** attempts) * 1000;
-                console.log(`⚠ Connection lost (${code}). Reconnecting in ${wait / 1000}s...`);
-
+                console.log(`⚠ Reconnect in ${wait / 1000}s...`);
                 await delay(wait);
                 safeStart();
             }
         });
 
-        /* -------------- HEARTBEAT PRESENCE -------------- */
+        /* -------------- ALWAYS ONLINE -------------- */
         setInterval(() => {
-            if (sock.user) sock.sendPresenceUpdate("available").catch(() => {});
-        }, 20_000);
+            if (sock.user)
+                sock.sendPresenceUpdate("available").catch(() => {});
+        }, 20000);
 
-        /* -------------- WATCHDOG: restart if frozen -------------- */
+        /* -------------- WATCHDOG -------------- */
         setInterval(() => {
             if (Date.now() - lastActivity > 300000) {
-                console.log("⚠ Watchdog: inactivity detected, restarting...");
+                console.log("⚠ Watchdog: restarting...");
                 safeStart();
             }
         }, 60000);
 
-        /* -------------- RETURN SOCKET -------------- */
         return sock;
     } catch (err) {
         console.error("Fatal startBot error:", err);

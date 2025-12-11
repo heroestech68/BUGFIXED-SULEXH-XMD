@@ -1,14 +1,16 @@
 const settings = require('../settings');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 
 async function helpCommand(sock, chatId, message) {
+
     const helpMessage = `
 ╔═══════════════════╗
-   *🤖 ${settings.botName || 'BUGFIXED-SULEXH-XMD-MD'}*  
-   Version: *${settings.version || '3.0.0'}*
+   *🤖 ${settings.botName || 'BUGFIXED-SULEXH-XMD'}*  
+   Version: *${settings.version || '3.0.5'}*
    by ${settings.botOwner || 'BUGFIXED-SULEXH-TECH'}
-   YT : ${global.ytch}
+   YT : BUGFIXED-SULEXH-TECH
 ╚═══════════════════╝
 
 *Available Commands:*
@@ -227,38 +229,37 @@ https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16
 `;
 
     try {
-        const imagePath = path.join(__dirname, '../assets/bot_image.jpg');
+        // Download image from your URL
+        const imageURL = "https://files.catbox.moe/x6k68g.png";
+        const audioURL = "https://files.catbox.moe/pox4r9.m4a";
 
-        if (fs.existsSync(imagePath)) {
-            const imageBuffer = fs.readFileSync(imagePath);
+        const img = await axios.get(imageURL, { responseType: "arraybuffer" });
+        const audio = await axios.get(audioURL, { responseType: "arraybuffer" });
 
-            await sock.sendMessage(
-                chatId,
-                {
-                    image: imageBuffer,
-                    caption: helpMessage,
-                    contextInfo: {
-                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                        newsletterName: 'BUGFIXED-SULEXH-XMD',
-                        serverMessageId: -1
-                    }
-                },
-                { quoted: message }
-            );
-
-        } else {
-            await sock.sendMessage(chatId, {
-                text: helpMessage,
+        // Send menu image + caption
+        await sock.sendMessage(
+            chatId,
+            {
+                image: img.data,
+                caption: helpMessage,
                 contextInfo: {
-                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                    newsletterName: 'BUGFIXED-SULEXH-XMD by BUGFIXED-SULEXH-TECH',
+                    newsletterJid: "0029VbAD3222f3EIZyXe6w16@broadcast",
+                    newsletterName: "BUGFIXED-SULEXH-XMD",
                     serverMessageId: -1
                 }
-            });
-        }
+            },
+            { quoted: message }
+        );
 
-    } catch (error) {
-        console.error('Error in help command:', error);
+        // Send the startup audio immediately after
+        await sock.sendMessage(chatId, {
+            audio: audio.data,
+            mimetype: "audio/m4a",
+            ptt: false
+        });
+
+    } catch (err) {
+        console.error("HELP CMD ERROR:", err);
         await sock.sendMessage(chatId, { text: helpMessage });
     }
 }

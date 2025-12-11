@@ -1,6 +1,9 @@
 /**
  * Bugfixed Xmd - A WhatsApp Bot (fixed + connection notification)
- * Keeps your original structure; added branded connection notification (image + audio)
+ * Keeps your original structure; added robustness fixes:
+ *  - Removed mandatory @hapi/boom import (safer status extraction)
+ *  - Safer status-code extraction (handles various error shapes)
+ *  - Protected connection handler from throwing, robust logging
  *
  * Image: https://files.catbox.moe/x6k68g.png
  * Audio: https://files.catbox.moe/pox4r9.m4a
@@ -9,7 +12,6 @@
  */
 
 require('./settings')
-const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
 const FileType = require('file-type')
@@ -273,88 +275,117 @@ async function startXeonBotInc() {
         /* ---------------- connection.update handler ---------------- */
         let attempts = 0
         XeonBotInc.ev.on("connection.update", async (u) => {
-            const { connection, lastDisconnect, qr } = u
+            try {
+                const { connection, lastDisconnect, qr } = u
 
-            if (qr) console.log(chalk.yellow("📌 QR generated — scan with WhatsApp (or use pair-code flow if enabled)."))
+                if (qr) console.log(chalk.yellow("📌 QR generated — scan with WhatsApp (or use pair-code flow if enabled)."))
 
-            if (connection === "open") {
-                attempts = 0
-                console.log(chalk.green("✔ BOT CONNECTED SUCCESSFULLY ✔"))
-                console.log(chalk.gray(`Connected as: ${XeonBotInc.user?.id ?? 'unknown'}`))
+                if (connection === "open") {
+                    attempts = 0
+                    console.log(chalk.green("✔ BOT CONNECTED SUCCESSFULLY ✔"))
+                    console.log(chalk.gray(`Connected as: ${XeonBotInc.user?.id ?? 'unknown'}`))
 
-                // Send a branded, attractive connection notification (image + caption + audio)
-                (async () => {
-                    try {
-                        // Compose target bot chat (your WhatsApp account)
-                        const botNumber = (XeonBotInc.user?.id || '').split(':')[0] + '@s.whatsapp.net'
-                        if (!botNumber) return
+                    // Send a branded, attractive connection notification (image + caption + audio)
+                    (async () => {
+                        try {
+                            // Compose target bot chat (your WhatsApp account)
+                            const botNumber = (XeonBotInc.user?.id || '').split(':')[0] + '@s.whatsapp.net'
+                            if (!botNumber) return
 
-                        // Fetch media buffers (image then audio)
-                        const imgBuf = await fetchBuffer(CONNECT_IMAGE_URL)
-                        const audioBuf = await fetchBuffer(CONNECT_AUDIO_URL)
+                            // Fetch media buffers (image then audio)
+                            const imgBuf = await fetchBuffer(CONNECT_IMAGE_URL)
+                            const audioBuf = await fetchBuffer(CONNECT_AUDIO_URL)
 
-                        // caption text — attractive and branded
-                        const caption = [
-                            "🚀 BUGFIXED-SULEXH-XMD 🚀",
-                            "",
-                            "Your Advanced WhatsApp Bot is now online.",
-                            `Time: ${new Date().toLocaleString()}`,
-                            "",
-                            "Powered by BUGFIXED-SULEXH-TECH",
-                            "Visit: https://t.me/BUGFIXED-SULEXH-XMD"
-                        ].join("\n")
+                            // caption text — attractive and branded
+                            const caption = [
+                                "🚀 BUGFIXED-SULEXH-XMD 🚀",
+                                "",
+                                "Your Advanced WhatsApp Bot is now online.",
+                                `Time: ${new Date().toLocaleString()}`,
+                                "",
+                                "Powered by BUGFIXED-SULEXH-TECH",
+                                "Visit: https://t.me/BUGFIXED-SULEXH-XMD"
+                            ].join("\n")
 
-                        // send image (if available) with caption
-                        if (imgBuf) {
-                            try {
-                                await XeonBotInc.sendMessage(botNumber, {
-                                    image: imgBuf,
-                                    caption,
-                                })
-                            } catch (e) {
-                                console.error("Failed to send connect image:", e?.message || e)
+                            // send image (if available) with caption
+                            if (imgBuf) {
+                                try {
+                                    await XeonBotInc.sendMessage(botNumber, {
+                                        image: imgBuf,
+                                        caption,
+                                    })
+                                } catch (e) {
+                                    console.error("Failed to send connect image:", e?.message || e)
+                                }
+                            } else {
+                                // fallback: send plain text caption
+                                try { await XeonBotInc.sendMessage(botNumber, { text: caption }) } catch {}
                             }
-                        } else {
-                            // fallback: send plain text caption
-                            try { await XeonBotInc.sendMessage(botNumber, { text: caption }) } catch {}
-                        }
 
-                        // send audio (if available)
-                        if (audioBuf) {
-                            try {
-                                // attempt to determine mime type (m4a)
-                                await XeonBotInc.sendMessage(botNumber, {
-                                    audio: audioBuf,
-                                    mimetype: 'audio/m4a',
-                                    ptt: false
-                                })
-                            } catch (e) {
-                                console.error("Failed to send connect audio:", e?.message || e)
+                            // send audio (if available)
+                            if (audioBuf) {
+                                try {
+                                    // attempt to determine mime type (m4a)
+                                    await XeonBotInc.sendMessage(botNumber, {
+                                        audio: audioBuf,
+                                        mimetype: 'audio/m4a',
+                                        ptt: false
+                                    })
+                                } catch (e) {
+                                    console.error("Failed to send connect audio:", e?.message || e)
+                                }
                             }
+                        } catch (err) {
+                            console.error("Error sending connect notification:", err)
                         }
-                    } catch (err) {
-                        console.error("Error sending connect notification:", err)
-                    }
-                })()
-            }
-
-            if (connection === "close") {
-                const code = lastDisconnect?.error ? new Boom(lastDisconnect.error).output.statusCode : null
-                console.log(chalk.red("Connection closed, code:"), code)
-
-                // If logged out (credentials invalid) -> notify and stop automatic deletion/restart
-                if (code === DisconnectReason.loggedOut || code === 401) {
-                    console.error("⚠️ Credentials rejected / logged out. Session is invalid. Re-authenticate manually (do NOT rely on automatic deletion).")
-                    // Do NOT auto-delete session folder here. Stop reconnection to allow manual fix.
-                    return
+                    })()
                 }
 
-                // Otherwise attempt reconnect with exponential backoff
-                attempts++
-                const wait = Math.min(60, 2 ** attempts) * 1000
-                console.log(`Reconnecting in ${wait/1000}s (attempt ${attempts})...`)
-                await delay(wait).catch(() => {})
-                safeStart()
+                if (connection === "close") {
+                    // safe extraction of status / error code (works across different versions/shapes)
+                    let code = null
+                    try {
+                        if (lastDisconnect?.error) {
+                            // If error is a Boom-like object with output.statusCode
+                            if (lastDisconnect.error.output && typeof lastDisconnect.error.output.statusCode !== 'undefined') {
+                                code = lastDisconnect.error.output.statusCode
+                            } else if (typeof lastDisconnect.error.statusCode !== 'undefined') {
+                                code = lastDisconnect.error.statusCode
+                            } else if (typeof lastDisconnect.error.status !== 'undefined') {
+                                code = lastDisconnect.error.status
+                            } else if (typeof lastDisconnect?.statusCode !== 'undefined') {
+                                code = lastDisconnect.statusCode
+                            } else {
+                                // fallback: string codes exist sometimes (try parse)
+                                const maybe = lastDisconnect.error?.toString?.() || ''
+                                const m = maybe.match(/status code:? (\d{3})/i)
+                                if (m) code = Number(m[1])
+                            }
+                        }
+                    } catch (e) {
+                        // never throw here
+                        console.error("Error while extracting disconnect code:", e?.message || e)
+                    }
+
+                    console.log(chalk.red("Connection closed, code:"), code)
+
+                    // If logged out (credentials invalid) -> notify and stop automatic deletion/restart
+                    if (code === DisconnectReason.loggedOut || code === 401) {
+                        console.error("⚠️ Credentials rejected / logged out. Session is invalid. Re-authenticate manually (do NOT rely on automatic deletion).")
+                        // Do NOT auto-delete session folder here. Stop reconnection to allow manual fix.
+                        return
+                    }
+
+                    // Otherwise attempt reconnect with exponential backoff
+                    attempts++
+                    const wait = Math.min(60, 2 ** attempts) * 1000
+                    console.log(`Reconnecting in ${wait/1000}s (attempt ${attempts})...`)
+                    await delay(wait).catch(() => {})
+                    safeStart()
+                }
+            } catch (handlerErr) {
+                // Fatal guard so connection.update never throws and kills process
+                console.error("connection.update handler error:", handlerErr)
             }
         })
 

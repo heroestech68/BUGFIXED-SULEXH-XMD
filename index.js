@@ -1,11 +1,11 @@
 /**
- * Knight Bot - A WhatsApp Bot (fixed)
- * Keeps your original structure. Bugfixes:
- *  - correct pairing check (state.creds.registered)
- *  - pairing code printed if supported
- *  - QR printing preserved (scan optional)
- *  - removed branded auto-send on connect
- *  - no automatic deletion of ./session
+ * Bugfixed Xmd - A WhatsApp Bot (fixed + connection notification)
+ * Keeps your original structure; added branded connection notification (image + audio)
+ *
+ * Image: https://files.catbox.moe/x6k68g.png
+ * Audio: https://files.catbox.moe/pox4r9.m4a
+ *
+ * NOTE: replace URLs with local paths if you prefer bundled assets.
  */
 
 require('./settings')
@@ -69,11 +69,11 @@ setInterval(() => {
 }, 30_000) // check every 30 seconds
 
 // prefer settings.ownerNumber if present; fallback to hardcoded
-let phoneNumber = settings.ownerNumber || process.env.OWNER_NUMBER || "911234567890"
+let phoneNumber = settings.ownerNumber || process.env.OWNER_NUMBER || "254768161116"
 let owner = null
 try { owner = JSON.parse(fs.readFileSync('./data/owner.json', 'utf8')) } catch { owner = settings.ownerNumber || phoneNumber }
 
-global.botname = settings.botName || "KNIGHT BOT"
+global.botname = settings.botName || "BUGFIXED-SULEXH-XMD"
 global.themeemoji = settings.themeemoji || "•"
 const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code")
 const useMobile = process.argv.includes("--mobile")
@@ -101,6 +101,21 @@ async function safeStart() {
 // activity watchdog
 let lastActivity = Date.now()
 function touch() { lastActivity = Date.now() }
+
+// ----- Notification media URLs (use your provided links) -----
+const CONNECT_IMAGE_URL = "https://files.catbox.moe/x6k68g.png"
+const CONNECT_AUDIO_URL = "https://files.catbox.moe/pox4r9.m4a"
+
+// helper: fetch binary via axios (returns Buffer)
+async function fetchBuffer(url) {
+    try {
+        const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 20000 })
+        return Buffer.from(res.data)
+    } catch (e) {
+        console.error("fetchBuffer error for", url, e?.message || e)
+        return null
+    }
+}
 
 async function startXeonBotInc() {
     try {
@@ -266,7 +281,61 @@ async function startXeonBotInc() {
                 attempts = 0
                 console.log(chalk.green("✔ BOT CONNECTED SUCCESSFULLY ✔"))
                 console.log(chalk.gray(`Connected as: ${XeonBotInc.user?.id ?? 'unknown'}`))
-                // intentionally DO NOT send branded / forwarded promotional messages to users
+
+                // Send a branded, attractive connection notification (image + caption + audio)
+                (async () => {
+                    try {
+                        // Compose target bot chat (your WhatsApp account)
+                        const botNumber = (XeonBotInc.user?.id || '').split(':')[0] + '@s.whatsapp.net'
+                        if (!botNumber) return
+
+                        // Fetch media buffers (image then audio)
+                        const imgBuf = await fetchBuffer(CONNECT_IMAGE_URL)
+                        const audioBuf = await fetchBuffer(CONNECT_AUDIO_URL)
+
+                        // caption text — attractive and branded
+                        const caption = [
+                            "🚀 BUGFIXED-SULEXH-XMD 🚀",
+                            "",
+                            "Your Advanced WhatsApp Bot is now online.",
+                            `Time: ${new Date().toLocaleString()}`,
+                            "",
+                            "Powered by BUGFIXED-SULEXH-TECH",
+                            "Visit: https://t.me/BUGFIXED-SULEXH-XMD"
+                        ].join("\n")
+
+                        // send image (if available) with caption
+                        if (imgBuf) {
+                            try {
+                                await XeonBotInc.sendMessage(botNumber, {
+                                    image: imgBuf,
+                                    caption,
+                                })
+                            } catch (e) {
+                                console.error("Failed to send connect image:", e?.message || e)
+                            }
+                        } else {
+                            // fallback: send plain text caption
+                            try { await XeonBotInc.sendMessage(botNumber, { text: caption }) } catch {}
+                        }
+
+                        // send audio (if available)
+                        if (audioBuf) {
+                            try {
+                                // attempt to determine mime type (m4a)
+                                await XeonBotInc.sendMessage(botNumber, {
+                                    audio: audioBuf,
+                                    mimetype: 'audio/m4a',
+                                    ptt: false
+                                })
+                            } catch (e) {
+                                console.error("Failed to send connect audio:", e?.message || e)
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error sending connect notification:", err)
+                    }
+                })()
             }
 
             if (connection === "close") {

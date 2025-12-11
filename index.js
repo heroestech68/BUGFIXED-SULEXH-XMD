@@ -1,16 +1,22 @@
 /**
- * index.js (cleaned & fixed)
- * Keeps sessions permanent (no auto-delete), preserves pairing code printing,
- * avoids branded forwarded messages and adds safer reconnect/backoff logic.
+ * Knight Bot - fixed index.js
+ * - No branded forwarded message on connect
+ * - Do NOT auto-delete session on loggedOut
+ * - Pairing-code printed once per run (throttled)
+ * - Exponential backoff reconnect for transient errors
+ * - Cleaner connection logging and conflict handling
+ *
+ * NOTE: I will not add or help add hacking/crashing features.
  */
 
 require('./settings')
 const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
+const path = require('path')
 const pino = require('pino')
-const NodeCache = require('node-cache')
 const readline = require('readline')
+const NodeCache = require('node-cache')
 
 const {
   default: makeWASocket,
@@ -25,25 +31,26 @@ const {
 const store = require('./lib/lightweight_store')
 const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main')
 
-/* ---------- init store & settings ---------- */
+// persist store
 store.readFromFile()
-const settings = require('./settings')
-setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
+setInterval(() => store.writeToFile(), (global.settings && global.settings.storeWriteInterval) || 10000)
 
-/* ---------- flags / helpers ---------- */
+// small helpers
 const rl = process.stdin.isTTY ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null
-const question = (text) => rl ? new Promise(res => rl.question(text, res)) : Promise.resolve(settings.ownerNumber || '')
+const question = (text) => rl ? new Promise(res => rl.question(text, res)) : Promise.resolve((global.settings && global.settings.ownerNumber) || '')
 
-let phoneNumber = settings.ownerNumber || process.env.OWNER_NUMBER || ''   // keep your existing owner number if present
-const pairingCodeFlag = !!phoneNumber || process.argv.includes('--pairing-code')
-const useMobile = process.argv.includes('--mobile')
+// Flags to avoid repeated pairing requests
+let pairingRequested = false
 
-let pairingRequested = false           // ensure we only request pairing code once per run
+// Activity watchdog
 let lastActivity = Date.now()
 function touchActivity(){ lastActivity = Date.now() }
 
-/* ---------- main start function ---------- */
-async function startBot(){
+// Single start guard
+let starting = false
+async function safeStart(){ if (starting) return; starting = true; try { await startXeonBotInc() } catch(e){ console.error('safeStart error', e) } finally { starting = false } }
+
+async function startXeonBotInc(){
   try {
     if (!fs.existsSync('./session')) fs.mkdirSync('./session', { recursive: true })
 
@@ -54,13 +61,12 @@ async function startBot(){
     const sock = makeWASocket({
       version,
       logger: pino({ level: 'silent' }),
-      // print QR in terminal so scanning is optional (you asked for printed QR)
-      // NOTE: modern Baileys may deprecate this - connection.update 'qr' event will still show.
+      // you wanted QR printed in terminal so keep it enabled
       printQRInTerminal: true,
-      browser: [settings.browserName || 'KNIGHT BOT', 'Chrome', '1.0'],
+      browser: ["KnightBot", "Chrome", "1.0"],
       auth: {
         creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
       },
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: true,
@@ -73,20 +79,21 @@ async function startBot(){
         } catch { return '' }
       },
       msgRetryCounterCache,
-      defaultQueryTimeoutMs: 60000,
-      connectTimeoutMs: 60000,
-      keepAliveIntervalMs: 10000
+      defaultQueryTimeoutMs: 60_000,
+      connectTimeoutMs: 60_000,
+      keepAliveIntervalMs: 10_000,
     })
 
-    // persist credentials
+    // attach store and credential saver
+    sock.msgRetryCounterCache = msgRetryCounterCache
     sock.ev.on('creds.update', saveCreds)
     store.bind(sock.ev)
 
-    // track activity
+    // touch activity when certain events happen
     sock.ev.on('connection.update', () => touchActivity())
     sock.ev.on('messages.upsert', () => touchActivity())
 
-    // unified messages.upsert handler (compatible with your existing handleMessages)
+    // unified messages handler (keeps your handleMessages logic)
     sock.ev.on('messages.upsert', async upsert => {
       try {
         const messages = upsert?.messages || upsert
@@ -94,27 +101,26 @@ async function startBot(){
         const msg = Array.isArray(messages) ? messages[0] : messages
         if (!msg || !msg.message) return
 
-        // unwrap ephemeral
+        // unwrap ephemeral messages
         if (msg.message && Object.keys(msg.message)[0] === 'ephemeralMessage') {
           msg.message = msg.message.ephemeralMessage?.message ?? msg.message
         }
 
-        // ignore status broadcasts
+        // don't process status broadcast
         if (msg.key?.remoteJid === 'status@broadcast') {
-          await handleStatus(sock, upsert).catch(()=>{})
+          await handleStatus(sock, upsert).catch(() => {})
           return
         }
 
-        // privacy/public behavior (leave as original)
+        // privacy/public: same behavior as before
         if (!sock.public && !msg.key?.fromMe && type === 'notify') {
           const isGroup = msg.key?.remoteJid?.endsWith?.('@g.us')
           if (!isGroup) return
         }
 
-        // skip certain ephemeral ids
+        // skip certain ephemeral IDs
         if (msg.key?.id && typeof msg.key.id === 'string' && msg.key.id.startsWith('BAE5') && msg.key.id.length === 16) return
 
-        // pass to main handler
         const chatUpdate = { messages: [msg], type }
         await handleMessages(sock, chatUpdate, true)
       } catch (err) {
@@ -126,16 +132,16 @@ async function startBot(){
       }
     })
 
-    // group participants
+    // group participant updates
     sock.ev.on('group-participants.update', async update => {
       await handleGroupParticipantUpdate(sock, update).catch(()=>{})
     })
 
-    // status & reactions
+    // status and reactions -> forward to your handler
     sock.ev.on('status.update', async s => handleStatus(sock, s).catch(()=>{}))
     sock.ev.on('messages.reaction', async s => handleStatus(sock, s).catch(()=>{}))
 
-    // contacts update to store
+    // contacts update -> keep store consistent
     sock.ev.on('contacts.update', updates => {
       for (const c of updates) {
         const id = sock.decodeJid ? sock.decodeJid(c.id) : c.id
@@ -143,16 +149,17 @@ async function startBot(){
       }
     })
 
-    // helpers
+    // helper: decodeJid
     sock.decodeJid = (jid) => {
       if (!jid) return jid
       if (/:\d+@/gi.test(jid)) {
-        const d = jidDecode(jid) || {}
-        return (d.user ? d.user + '@' + d.server : jid)
+        const decode = jidDecode(jid) || {}
+        return decode.user ? (decode.user + '@' + decode.server) : jid
       }
       return jid
     }
 
+    // helper: getName
     sock.getName = (jid, withoutContact=false) => {
       jid = sock.decodeJid(jid)
       withoutContact = sock.withoutContact || withoutContact
@@ -168,116 +175,136 @@ async function startBot(){
     }
 
     sock.public = true
-    sock.serializeM = m => m
+    sock.serializeM = (m) => m
 
-    /* ---------- pairing code flow (requested only once) ---------- */
-    if (pairingCodeFlag && !state.creds.registered && !pairingRequested) {
-      pairingRequested = true
-      if (useMobile) throw new Error('Cannot use pairing code with mobile api')
-
-      let pn = phoneNumber || await question('Enter your WhatsApp number (international, e.g. 2547xxxxxxx): ')
-      pn = pn.replace(/\D/g,'')
-      const apn = require('awesome-phonenumber')
-      if (!apn('+'+pn).isValid()) {
-        console.log(chalk.red('Invalid phone number format for pairing code.'))
-      } else {
-        setTimeout(async () => {
-          try {
+    // Pairing-code flow: request pairing code once per process if needed
+    try {
+      if (!pairingRequested && !state.creds?.registered) {
+        pairingRequested = true
+        // If your settings provide a number, use it; else ask (non-interactive returns settings.ownerNumber or '')
+        const phone = (global.phoneNumber || (process.argv.includes('--owner') ? process.argv[process.argv.indexOf('--owner')+1] : null) || (global.settings && global.settings.ownerNumber)) || await question('Enter WhatsApp number (international, no +): ')
+        const pn = (String(phone || '')).replace(/\D/g, '')
+        if (pn) {
+          const apn = require('awesome-phonenumber')
+          if (!apn('+' + pn).isValid()) {
+            console.log(chalk.red('Pairing number invalid. Skipping pairing-code request.'))
+          } else {
+            // request pairing code if supported
             if (typeof sock.requestPairingCode === 'function') {
-              let code = await sock.requestPairingCode(pn)
-              code = code?.match(/.{1,4}/g)?.join('-') ?? code
-              console.log(chalk.bgGreen('PAIRING CODE:'), code)
-              console.log('Insert that code in WhatsApp -> Settings -> Linked devices -> Link a device')
+              try {
+                const raw = await sock.requestPairingCode(pn)
+                const code = raw?.match(/.{1,4}/g)?.join('-') ?? raw
+                console.log(chalk.bgGreen('PAIRING CODE:'), code)
+                console.log(chalk.yellow('Insert this code in WhatsApp > Settings > Linked Devices > Link a device'))
+              } catch (err) {
+                console.error('Failed to request pairing code:', err)
+              }
             } else {
-              console.log(chalk.yellow('Pairing code API not available in this Baileys version; scan the QR shown in terminal/connection.update.'))
+              console.log(chalk.yellow('Pairing-code API not available in this Baileys version. Use QR instead.'))
             }
-          } catch (err) {
-            console.error('Error requesting pairing code:', err)
           }
-        }, 1000)
+        } else {
+          console.log(chalk.yellow('No phone provided for pairing-code flow; use QR or upload creds.json via panel.'))
+        }
       }
+    } catch (err) {
+      console.error('Pairing code flow error:', err)
     }
 
-    /* ---------- connection.update: backoff reconnect, DO NOT auto-delete creds ---------- */
+    // connection.update handler with safer behavior
     let reconnectAttempts = 0
     sock.ev.on('connection.update', async update => {
       const { connection, lastDisconnect, qr } = update
 
-      if (qr) console.log(chalk.yellow('📌 QR generated (scan if you want)'))
+      if (qr) {
+        console.log(chalk.yellow('📌 QR generated (scan if you want)'))
+      }
+
+      if (connection === 'connecting') {
+        console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
+      }
 
       if (connection === 'open') {
         reconnectAttempts = 0
         console.log(chalk.green('✔ Bot connected successfully!'))
         console.log(chalk.gray(`Connected as: ${sock.user?.id || 'unknown'}`))
-        // Do NOT send promotional/forwarded messages to your number here.
+        // intentionally do not send promotional/forwarded messages
       }
 
       if (connection === 'close') {
-        // get status code safely
-        const statusCode = lastDisconnect?.error ? new Boom(lastDisconnect.error).output.statusCode : null
-        console.log('Connection closed - reason:', statusCode, lastDisconnect?.error?.toString?.() ?? '')
+        // get reason code safely
+        let statusCode = null
+        try {
+          statusCode = lastDisconnect?.error ? new Boom(lastDisconnect.error).output.statusCode : null
+        } catch (e) {
+          // fallback when Boom can't parse
+          statusCode = (lastDisconnect?.error && lastDisconnect.error.status) || null
+        }
 
-        // If credentials are invalid/logged out (401), log clearly and stop auto-reconnect.
-        // Do NOT auto-delete ./session so you can upload new creds if needed.
+        console.log(chalk.red('Connection closed - reason:'), statusCode, lastDisconnect?.error?.toString?.() || lastDisconnect)
+
+        // if logged out / credentials rejected -> do NOT delete session automatically
         if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-          console.error('⚠️ Credentials rejected / logged out (401). Session is invalid and must be re-authenticated.')
-          console.error('Upload new creds.json via your pairing panel or re-pair manually.')
-          // stop here — do not try to delete files or auto-repair
+          console.error(chalk.red('⚠️ Credentials rejected / logged out (401). Session invalid. Please re-authenticate or upload new creds.json via panel.'))
+          // stop trying to auto-restart here — require manual intervention
           return
         }
 
-        // For transient errors (conflict/stream errors etc) attempt reconnect with backoff
+        // handle conflict stream errors or transient errors with backoff
         reconnectAttempts++
-        const waitSec = Math.min(60, Math.pow(2, reconnectAttempts))
-        console.log(`Transient error: auto-restarting in ${waitSec}s (attempt ${reconnectAttempts})`)
+        const waitSec = Math.min(60, 2 ** Math.min(reconnectAttempts, 8))
+        console.log(chalk.yellow(`Transient disconnect — restarting in ${waitSec}s (attempt ${reconnectAttempts})`))
         await delay(waitSec * 1000).catch(()=>{})
-        startSafe()
+        safeStart()
       }
     })
 
-    // presence heartbeat to keep session alive
+    // presence / heartbeat
     setInterval(async () => {
       try { if (sock?.user?.id) await sock.sendPresenceUpdate('available').catch(()=>{}) } catch {}
     }, 20_000)
 
-    // watchdog to restart if frozen
+    // watchdog: restart if frozen
     setInterval(() => {
-      if (Date.now() - lastActivity > 5 * 60 * 1000) {
-        console.warn('Watchdog: no activity >5m; restarting bot.')
-        startSafe()
+      if (Date.now() - lastActivity > (5 * 60 * 1000)) {
+        console.warn('Watchdog: no activity >5m -> restarting...')
+        safeStart()
       }
     }, 60_000)
 
     return sock
-
   } catch (err) {
     console.error('Error starting bot:', err)
     await delay(2000).catch(()=>{})
-    startSafe()
+    safeStart()
   }
 }
 
-/* ---------- safe single-start wrapper ---------- */
-let starting = false
-async function startSafe(){
-  if (starting) return
-  starting = true
-  try { await startBot() } catch (e) { console.error('safeStart error', e) }
-  starting = false
-}
-
-/* ---------- run ---------- */
-startSafe().catch(err => { console.error('Fatal start error:', err); process.exit(1) })
-
-/* ---------- global crash handlers ---------- */
-process.on('uncaughtException', (err) => { console.error('uncaughtException', err); startSafe() })
-process.on('unhandledRejection', (err) => { console.error('unhandledRejection', err); startSafe() })
-
-/* ---------- hot reload (dev) ---------- */
-let file = require.resolve(__filename)
-fs.watchFile(file, () => {
-  fs.unwatchFile(file)
-  console.log('♻️ Reloading index.js')
-  delete require.cache[file]
-  require(file)
+// start safely
+safeStart().catch(err => {
+  console.error('Fatal start error:', err)
+  process.exit(1)
 })
+
+// global crash handlers
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException', err)
+  // try to restart safely
+  safeStart()
+})
+
+process.on('unhandledRejection', (err) => {
+  console.error('unhandledRejection', err)
+  safeStart()
+})
+
+// optional hot reload for dev
+try {
+  const file = require.resolve(__filename)
+  fs.watchFile(file, () => {
+    fs.unwatchFile(file)
+    console.log('♻️ Reloading index.js')
+    delete require.cache[file]
+    try { require(file) } catch (e) { console.error('reload error', e) }
+  })
+} catch (e) { /* ignore in restricted environments */ }

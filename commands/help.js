@@ -80,6 +80,8 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .autostatus <on/off>
 ║ ➤ .autostatus react <on/off>
 ║ ➤ .autotyping <on/off>
+║ ➤ .autorecording <on/off>
+║ ➤ .alwaysonline <on/off>
 ║ ➤ .autoread <on/off>
 ║ ➤ .anticall <on/off>
 ║ ➤ .pmblocker <on/off/status>
@@ -229,14 +231,12 @@ https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16
 `;
 
     try {
-        // Download image from your URL
         const imageURL = "https://files.catbox.moe/x6k68g.png";
         const audioURL = "https://files.catbox.moe/pox4r9.m4a";
 
         const img = await axios.get(imageURL, { responseType: "arraybuffer" });
         const audio = await axios.get(audioURL, { responseType: "arraybuffer" });
 
-        // Send menu image + caption
         await sock.sendMessage(
             chatId,
             {
@@ -251,7 +251,6 @@ https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16
             { quoted: message }
         );
 
-        // Send the startup audio immediately after
         await sock.sendMessage(chatId, {
             audio: audio.data,
             mimetype: "audio/m4a",

@@ -1,83 +1,56 @@
 /**
  * Bugfixed Sulexh - A WhatsApp Bot
- * Copyright (c) 2024 Professor
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the MIT License.
- * 
- * Credits:
- * - Baileys Library by @adiwajshing
- * - Pair Code implementation inspired by TechGod143 & DGXEON
  */
 require('./settings')
-const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
-const FileType = require('file-type')
 const path = require('path')
 const axios = require('axios')
-const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main');
+const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main')
 const PhoneNumber = require('awesome-phonenumber')
-const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/exif')
-const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetch, await, sleep, reSize } = require('./lib/myfunc')
+const { smsg } = require('./lib/myfunc')
 const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestBaileysVersion,
-    generateForwardMessageContent,
-    prepareWAMessageMedia,
-    generateWAMessageFromContent,
-    generateMessageID,
-    downloadContentFromMessage,
     jidDecode,
-    proto,
     jidNormalizedUser,
     makeCacheableSignalKeyStore,
     delay
 } = require("@whiskeysockets/baileys")
-const NodeCache = require("node-cache")
 const pino = require("pino")
 const readline = require("readline")
-const { parsePhoneNumber } = require("libphonenumber-js")
-const { PHONENUMBER_MCC } = require('@whiskeysockets/baileys/lib/Utils/generics')
 const { rmSync } = require('fs')
 
-// Import lightweight store
+// Store
 const store = require('./lib/lightweight_store')
-
-// Initialize store
 store.readFromFile()
-const settings = require('./settings')
-setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
+setInterval(() => store.writeToFile(), 10000)
 
-// Memory optimization
+// Memory safety
+setInterval(() => global.gc && global.gc(), 60000)
 setInterval(() => {
-    if (global.gc) global.gc()
-}, 60_000)
-
-// Memory monitoring
-setInterval(() => {
-    const used = process.memoryUsage().rss / 1024 / 1024
-    if (used > 400) process.exit(1)
-}, 30_000)
+    if (process.memoryUsage().rss / 1024 / 1024 > 400) process.exit(1)
+}, 30000)
 
 let phoneNumber = "254768161116"
-let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
-
 global.botname = "BUGFIXED SULEXH XMD"
 global.themeemoji = "•"
-const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code")
-const useMobile = process.argv.includes("--mobile")
 
-const rl = process.stdin.isTTY ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null
-const question = (text) => rl ? new Promise(r => rl.question(text, r)) : Promise.resolve(phoneNumber)
+const pairingCode = !!phoneNumber
+const rl = process.stdin.isTTY
+    ? readline.createInterface({ input: process.stdin, output: process.stdout })
+    : null
 
 async function startXeonBotInc() {
     try {
-        let { version } = await fetchLatestBaileysVersion()
-        const { state, saveCreds } = await useMultiFileAuthState(`./session`)
-        const msgRetryCounterCache = new NodeCache()
+        // ✅ STATIC VERSION (NO FREEZE)
+        const version = [2, 3000, 1015901307]
+
+        const { state, saveCreds } = await useMultiFileAuthState('./session')
+
+        // ✅ CORRECT TYPE
+        const msgRetryCounterCache = new Map()
 
         const XeonBotInc = makeWASocket({
             version,
@@ -86,24 +59,23 @@ async function startXeonBotInc() {
             browser: ["Ubuntu", "Chrome", "20.0.04"],
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
             },
             markOnlineOnConnect: true,
+            msgRetryCounterCache,
             getMessage: async (key) => {
-                let jid = jidNormalizedUser(key.remoteJid)
-                let msg = await store.loadMessage(jid, key.id)
-                return msg?.message || ""
-            },
-            msgRetryCounterCache
+                const jid = jidNormalizedUser(key.remoteJid)
+                return (await store.loadMessage(jid, key.id))?.message || ""
+            }
         })
 
         XeonBotInc.ev.on('creds.update', saveCreds)
         store.bind(XeonBotInc.ev)
 
-        XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
+        XeonBotInc.ev.on('messages.upsert', async (chatUpdate) => {
             try {
                 const mek = chatUpdate.messages[0]
-                if (!mek.message) return
+                if (!mek?.message) return
 
                 mek.message = mek.message?.ephemeralMessage?.message || mek.message
 
@@ -112,29 +84,28 @@ async function startXeonBotInc() {
                     return
                 }
 
-                if (!XeonBotInc.public && !mek.key.fromMe) return
-                if (mek.key.id.startsWith('BAE5')) return
+                if (mek.key.id?.startsWith('BAE5')) return
 
                 await handleMessages(XeonBotInc, chatUpdate, true)
-
-            } catch (err) {
-                console.error("messages.upsert error:", err)
+            } catch (e) {
+                console.error('messages.upsert error:', e)
             }
         })
 
-        XeonBotInc.ev.on('connection.update', async (s) => {
+        XeonBotInc.ev.on('connection.update', (s) => {
             if (s.connection === 'open') {
                 console.log('✅ Connected:', XeonBotInc.user.id)
             }
             if (s.connection === 'close') {
-                if (s.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                    startXeonBotInc()
-                }
+                const code = s.lastDisconnect?.error?.output?.statusCode
+                if (code !== DisconnectReason.loggedOut) startXeonBotInc()
+                else rmSync('./session', { recursive: true, force: true })
             }
         })
 
     } catch (err) {
         console.error(err)
+        await delay(3000)
         startXeonBotInc()
     }
 }

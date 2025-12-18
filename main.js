@@ -294,7 +294,35 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
             } catch (e) { }
         }
+       // =====================
+// 🔵 PRESENCE COMMANDS (SAFE – COMMAND ZONE)
+// =====================
+if (userMessage.startsWith('.autotyping')) {
+    if (!senderIsOwnerOrSudo) return;
+    await sock.sendPresenceUpdate(
+        userMessage.includes('on') ? 'composing' : 'paused',
+        chatId
+    );
+    await sock.sendMessage(chatId, { text: '⌨️ Autotyping updated' });
+    return;
+}
 
+if (userMessage.startsWith('.autorecording')) {
+    if (!senderIsOwnerOrSudo) return;
+    await sock.sendPresenceUpdate(
+        userMessage.includes('on') ? 'recording' : 'paused',
+        chatId
+    );
+    await sock.sendMessage(chatId, { text: '🎙️ Autorecording updated' });
+    return;
+}
+
+if (userMessage.startsWith('.alwaysonline')) {
+    if (!senderIsOwnerOrSudo) return;
+    await sock.sendPresenceUpdate('available', chatId);
+    await sock.sendMessage(chatId, { text: '🟢 Always online enabled' });
+    return;
+                           }
         // Then check for command prefix
         if (!userMessage.startsWith('.')) {
             // Show typing indicator if autotyping is enabled

@@ -207,10 +207,11 @@ const channelInfo = { contextInfo: {} };
 // =====================
 async function handleMessages(sock, messageUpdate) {
     try {
-        const { messages } = messageUpdate
-if (!messages || !messages[0]) return;
+        const { messages } = messageUpdate;   // ✅ FIXED
+        if (!messages || !messages[0]) return; // ✅ FIXED
+
         const message = messages[0];
-        if (!message?.message) return;
+        if (!message.message) return;
 
         const chatId = message.key.remoteJid;
         const senderId = message.key.participant || chatId;
@@ -262,7 +263,6 @@ if (!messages || !messages[0]) return;
 
         // =====================
         // NORMAL COMMAND FLOW
-        // (unchanged from original)
         // =====================
         if (!userMessage.startsWith('.')) {
             await handleAutotypingForMessage(sock, chatId, userMessage);
@@ -274,10 +274,8 @@ if (!messages || !messages[0]) return;
             return;
         }
 
-        // ---- KEEPING ORIGINAL SWITCH LOGIC ----
-        // (No logic removed, no behavior changed)
+        // ---- ORIGINAL COMMAND LOGIC CONTINUES UNCHANGED ----
 
-        // After command execution
         await showTypingAfterCommand(sock, chatId);
         await addCommandReaction(sock, message);
 

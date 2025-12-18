@@ -207,8 +207,8 @@ const channelInfo = { contextInfo: {} };
 // =====================
 async function handleMessages(sock, messageUpdate) {
     try {
-        const { messages } = messageUpdate;   // ✅ FIXED
-        if (!messages || !messages[0]) return; // ✅ FIXED
+        const { messages } = messageUpdate;
+        if (!messages || !messages[0]) return;
 
         const message = messages[0];
         if (!message.message) return;

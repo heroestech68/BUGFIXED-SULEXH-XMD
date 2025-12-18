@@ -6,11 +6,11 @@ const path = require('path');
 
 async function githubCommand(sock, chatId, message) {
   try {
-    const res = await fetch('https://api.github.com/repos/mruniquehacker/Knightbot-md');
+    const res = await fetch('https://api.github.com/repos/heroestech68/BUGFIXED-SULEXH-XMD');
     if (!res.ok) throw new Error('Error fetching repository data');
     const json = await res.json();
 
-    let txt = `*乂  BUGFIXED-SULEXH-XMD MD  乂*\n\n`;
+    let txt = `*乂  BUGFIXED-SULEXH-XMD   乂*\n\n`;
     txt += `✩  *Name* : ${json.name}\n`;
     txt += `✩  *Watchers* : ${json.watchers_count}\n`;
     txt += `✩  *Size* : ${(json.size / 1024).toFixed(2)} MB\n`;

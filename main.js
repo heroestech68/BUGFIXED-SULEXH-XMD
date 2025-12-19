@@ -189,29 +189,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isGroup = chatId.endsWith('@g.us');
         const senderIsSudo = await isSudo(senderId);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
-       // =====================
-// 🔵 PRESENCE COMMANDS (SAFE – CORRECT SCOPE)
-// =====================
-if (userMessage.startsWith('.autotyping')) {
-    if (!senderIsOwnerOrSudo) return;
-    setPresence(userMessage.includes('on') ? 'typing' : 'none', sock);
-    await sock.sendMessage(chatId, { text: '⌨️ Autotyping updated' });
-    return;
-}
-
-if (userMessage.startsWith('.autorecording')) {
-    if (!senderIsOwnerOrSudo) return;
-    setPresence(userMessage.includes('on') ? 'recording' : 'none', sock);
-    await sock.sendMessage(chatId, { text: '🎙️ Autorecording updated' });
-    return;
-}
-
-if (userMessage.startsWith('.alwaysonline')) {
-    if (!senderIsOwnerOrSudo) return;
-    setPresence(userMessage.includes('on') ? 'online' : 'none', sock);
-    await sock.sendMessage(chatId, { text: '🟢 Always online updated' });
-    return;
-}
+       
         // Handle button responses
         if (message.message?.buttonsResponseMessage) {
             const buttonId = message.message.buttonsResponseMessage.selectedButtonId;

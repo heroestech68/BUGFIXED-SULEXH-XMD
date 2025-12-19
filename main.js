@@ -240,25 +240,41 @@ async function handleMessages(sock, messageUpdate, printLog) {
         ).toLowerCase().replace(/\.\s+/g, '.').trim();
         // =====================
 // 🔵 PRESENCE COMMANDS (SAFE ZONE)
-// =====================
+// ====================
+const setPresence = async (mode, sock, chatId) => {
+    try {
+        if (mode === 'typing') {
+            await sock.sendPresenceUpdate('composing', chatId);
+        } else if (mode === 'recording') {
+            await sock.sendPresenceUpdate('recording', chatId);
+        } else if (mode === 'online') {
+            await sock.sendPresenceUpdate('available', chatId);
+        } else {
+            await sock.sendPresenceUpdate('unavailable', chatId);
+        }
+    } catch (error) {
+        console.error('❌ Presence error:', error);
+    }
+};
+
 if (userMessage.startsWith('.autotyping')) {
     if (!senderIsOwnerOrSudo) return;
-    setPresence(userMessage.includes('on') ? 'typing' : 'none', sock);
-    await sock.sendMessage(chatId, { text: '⌨️ Autotyping updated' });
+    const mode = userMessage.includes('on') ? 'typing' : 'none';
+    await setPresence(mode, sock, chatId);
     return;
 }
 
 if (userMessage.startsWith('.autorecording')) {
     if (!senderIsOwnerOrSudo) return;
-    setPresence(userMessage.includes('on') ? 'recording' : 'none', sock);
-    await sock.sendMessage(chatId, { text: '🎙️ Autorecording updated' });
+    const mode = userMessage.includes('on') ? 'recording' : 'none';
+    await setPresence(mode, sock, chatId);
     return;
 }
 
 if (userMessage.startsWith('.alwaysonline')) {
     if (!senderIsOwnerOrSudo) return;
-    setPresence(userMessage.includes('on') ? 'online' : 'none', sock);
-    await sock.sendMessage(chatId, { text: '🟢 Always online updated' });
+    const mode = userMessage.includes('on') ? 'online' : 'none';
+    await setPresence(mode, sock, chatId);
     return;
 }
         // Preserve raw message for commands like .tag that need original casing

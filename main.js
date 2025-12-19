@@ -38,10 +38,7 @@ const { isSudo } = require('./lib/index');
 const isOwnerOrSudo = require('./lib/isOwner');
 const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
 const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
-// 
-// ... [UNCHANGED CODE ABOVE REMAINS IDENTICAL]
- `    const userMessage = (         message.message?.conversation?.trim() ||         message.message?.extendedTextMessage?.text?.trim() ||         message.message?.imageMessage?.caption?.trim() ||         message.message?.videoMessage?.caption?.trim() ||         message.message?.buttonsResponseMessage?.selectedButtonId?.trim() ||         ''     ).toLowerCase().replace(/\.\s+/g, '.').trim();      // Preserve raw message for commands like .tag that need original casing     const rawText = message.message?.conversation?.trim() ||         message.message?.extendedTextMessage?.text?.trim() ||         message.message?.imageMessage?.caption?.trim() ||         message.message?.videoMessage?.caption?.trim() ||         '';      // =====================     // 🔵 PRESENCE COMMANDS (SAFE ZONE)     // =====================     if (userMessage.startsWith('.autotyping')) {         if (!senderIsOwnerOrSudo) return;         setPresence(userMessage.includes('on') ? 'typing' : 'none', sock);         await sock.sendMessage(chatId, { text: '⌨️ Autotyping updated' });         return;     }      if (userMessage.startsWith('.autorecording')) {         if (!senderIsOwnerOrSudo) return;         setPresence(userMessage.includes('on') ? 'recording' : 'none', sock);         await sock.sendMessage(chatId, { text: '🎙️ Autorecording updated' });         return;     }      if (userMessage.startsWith('.alwaysonline')) {         if (!senderIsOwnerOrSudo) return;         setPresence(userMessage.includes('on') ? 'online' : 'none', sock);         await sock.sendMessage(chatId, { text: '🟢 Always online updated' });         return;     }      // Only log command usage     if (userMessage.startsWith('.')) {         console.log(`📝 Command used in ${isGroup ? 'group' : 'private'}: ${userMessage}`);     } ` 
-// ... [REST OF FILE CONTINUES UNCHANGED]
+
 // Command imports
 const tagAllCommand = require('./commands/tagall');
 const helpCommand = require('./commands/help');
@@ -209,7 +206,29 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isGroup = chatId.endsWith('@g.us');
         const senderIsSudo = await isSudo(senderId);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
-       
+       // =====================
+// 🔵 PRESENCE COMMANDS (SAFE ZONE)
+// =====================
+if (userMessage.startsWith('.autotyping')) {
+    if (!senderIsOwnerOrSudo) return;
+    setPresence(userMessage.includes('on') ? 'typing' : 'none', sock);
+    await sock.sendMessage(chatId, { text: '⌨️ Autotyping updated' });
+    return;
+}
+
+if (userMessage.startsWith('.autorecording')) {
+    if (!senderIsOwnerOrSudo) return;
+    setPresence(userMessage.includes('on') ? 'recording' : 'none', sock);
+    await sock.sendMessage(chatId, { text: '🎙️ Autorecording updated' });
+    return;
+}
+
+if (userMessage.startsWith('.alwaysonline')) {
+    if (!senderIsOwnerOrSudo) return;
+    setPresence(userMessage.includes('on') ? 'online' : 'none', sock);
+    await sock.sendMessage(chatId, { text: '🟢 Always online updated' });
+    return;
+    }
         // Handle button responses
         if (message.message?.buttonsResponseMessage) {
             const buttonId = message.message.buttonsResponseMessage.selectedButtonId;

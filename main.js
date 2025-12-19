@@ -164,7 +164,24 @@ const channelInfo = {
         }
     }
 };
-
+// =====================
+// 🔵 PRESENCE HELPER (REQUIRED)
+// =====================
+async function setPresence(type, sock) {
+    try {
+        if (type === 'typing') {
+            await sock.sendPresenceUpdate('composing');
+        } else if (type === 'recording') {
+            await sock.sendPresenceUpdate('recording');
+        } else if (type === 'online') {
+            await sock.sendPresenceUpdate('available');
+        } else {
+            await sock.sendPresenceUpdate('paused');
+        }
+    } catch (e) {
+        console.error('Presence update failed:', e.message);
+    }
+}
 async function handleMessages(sock, messageUpdate, printLog) {
     try {
         const { messages, type } = messageUpdate;

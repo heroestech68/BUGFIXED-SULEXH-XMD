@@ -316,43 +316,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         if (!isPublic && !isOwnerOrSudoCheck) {
             return;
         }
-        // =====================
-// 🔵 PRESENCE COMMANDS (CORRECT COMMAND ZONE)
-// =====================
-if (userMessage === '.autotyping on') {
-    if (!senderIsOwnerOrSudoCheck) return;
-    await sock.sendPresenceUpdate('composing', chatId);
-    await sock.sendMessage(chatId, { text: '⌨️ Autotyping enabled' });
-    return;
-}
-
-if (userMessage === '.autotyping off') {
-    if (!senderIsOwnerOrSudoCheck) return;
-    await sock.sendPresenceUpdate('paused', chatId);
-    await sock.sendMessage(chatId, { text: '⌨️ Autotyping disabled' });
-    return;
-}
-
-if (userMessage === '.autorecording on') {
-    if (!senderIsOwnerOrSudoCheck) return;
-    await sock.sendPresenceUpdate('recording', chatId);
-    await sock.sendMessage(chatId, { text: '🎙️ Autorecording enabled' });
-    return;
-}
-
-if (userMessage === '.autorecording off') {
-    if (!senderIsOwnerOrSudoCheck) return;
-    await sock.sendPresenceUpdate('paused', chatId);
-    await sock.sendMessage(chatId, { text: '🎙️ Autorecording disabled' });
-    return;
-}
-
-if (userMessage === '.alwaysonline on') {
-    if (!senderIsOwnerOrSudoCheck) return;
-    await sock.sendPresenceUpdate('available', chatId);
-    await sock.sendMessage(chatId, { text: '🟢 Always online enabled' });
-    return;
-} 
+      
         // List of admin commands
         const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antitag', '.setgdesc', '.setgname', '.setgpp'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));

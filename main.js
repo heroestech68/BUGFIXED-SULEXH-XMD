@@ -1,4 +1,3 @@
-
 // 🧹 Fix for ENOSPC / temp overflow in hosted panels
 const fs = require('fs');
 const path = require('path');
@@ -165,21 +164,30 @@ const channelInfo = {
 // =====================
 // 🔵 PRESENCE HELPER (REQUIRED)
 // =====================
-async function setPresence(type, sock) {
+// Consolidated presence helper used by presence commands.
+// mode: 'typing' | 'recording' | 'online' | 'none'
+async function setPresence(mode, sock, chatId) {
     try {
-        if (type === 'typing') {
-            await sock.sendPresenceUpdate('composing');
-        } else if (type === 'recording') {
-            await sock.sendPresenceUpdate('recording');
-        } else if (type === 'online') {
-            await sock.sendPresenceUpdate('available');
+        if (mode === 'typing') {
+            // composing -> typing
+            if (chatId) await sock.sendPresenceUpdate('composing', chatId);
+            else await sock.sendPresenceUpdate('composing');
+        } else if (mode === 'recording') {
+            if (chatId) await sock.sendPresenceUpdate('recording', chatId);
+            else await sock.sendPresenceUpdate('recording');
+        } else if (mode === 'online') {
+            if (chatId) await sock.sendPresenceUpdate('available', chatId);
+            else await sock.sendPresenceUpdate('available');
         } else {
-            await sock.sendPresenceUpdate('paused');
+            // stop typing/recording or set unavailable
+            if (chatId) await sock.sendPresenceUpdate('unavailable', chatId);
+            else await sock.sendPresenceUpdate('unavailable');
         }
     } catch (e) {
-        console.error('Presence update failed:', e.message);
+        console.error('Presence update failed:', e && e.message ? e.message : e);
     }
 }
+
 async function handleMessages(sock, messageUpdate, printLog) {
     try {
         const { messages, type } = messageUpdate;
@@ -241,42 +249,28 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // =====================
 // 🔵 PRESENCE COMMANDS (SAFE ZONE)
 // ====================
-const setPresence = async (mode, sock, chatId) => {
-    try {
-        if (mode === 'typing') {
-            await sock.sendPresenceUpdate('composing', chatId);
-        } else if (mode === 'recording') {
-            await sock.sendPresenceUpdate('recording', chatId);
-        } else if (mode === 'online') {
-            await sock.sendPresenceUpdate('available', chatId);
-        } else {
-            await sock.sendPresenceUpdate('unavailable', chatId);
+        // (Removed inner duplicate setPresence to avoid shadowing the module-level one)
+
+        if (userMessage.startsWith('.autotyping')) {
+            if (!senderIsOwnerOrSudo) return;
+            const mode = userMessage.includes('on') ? 'typing' : 'none';
+            await setPresence(mode, sock, chatId);
+            return;
         }
-    } catch (error) {
-        console.error('❌ Presence error:', error);
-    }
-};
 
-if (userMessage.startsWith('.autotyping')) {
-    if (!senderIsOwnerOrSudo) return;
-    const mode = userMessage.includes('on') ? 'typing' : 'none';
-    await setPresence(mode, sock, chatId);
-    return;
-}
+        if (userMessage.startsWith('.autorecording')) {
+            if (!senderIsOwnerOrSudo) return;
+            const mode = userMessage.includes('on') ? 'recording' : 'none';
+            await setPresence(mode, sock, chatId);
+            return;
+        }
 
-if (userMessage.startsWith('.autorecording')) {
-    if (!senderIsOwnerOrSudo) return;
-    const mode = userMessage.includes('on') ? 'recording' : 'none';
-    await setPresence(mode, sock, chatId);
-    return;
-}
-
-if (userMessage.startsWith('.alwaysonline')) {
-    if (!senderIsOwnerOrSudo) return;
-    const mode = userMessage.includes('on') ? 'online' : 'none';
-    await setPresence(mode, sock, chatId);
-    return;
-}
+        if (userMessage.startsWith('.alwaysonline')) {
+            if (!senderIsOwnerOrSudo) return;
+            const mode = userMessage.includes('on') ? 'online' : 'none';
+            await setPresence(mode, sock, chatId);
+            return;
+        }
         // Preserve raw message for commands like .tag that need original casing
         const rawText = message.message?.conversation?.trim() ||
             message.message?.extendedTextMessage?.text?.trim() ||
@@ -374,7 +368,11 @@ if (userMessage.startsWith('.alwaysonline')) {
         }
       
         // List of admin commands
-        const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antitag', '.setgdesc', '.setgname', '.setgpp'];
+        const adminCommands = [
+          '.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick',
+          '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antitag',
+          '.setgdesc', '.setgname', '.setgpp'
+        ];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
@@ -437,8 +435,10 @@ if (userMessage.startsWith('.alwaysonline')) {
                 break;
             }
             case userMessage.startsWith('.kick'):
-                const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
+                {
+                  const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                  await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
+                }
                 break;
             case userMessage.startsWith('.mute'):
                 {
@@ -482,16 +482,22 @@ if (userMessage.startsWith('.alwaysonline')) {
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.warnings'):
-                const mentionedJidListWarnings = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await warningsCommand(sock, chatId, mentionedJidListWarnings);
+                {
+                  const mentionedJidListWarnings = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                  await warningsCommand(sock, chatId, mentionedJidListWarnings);
+                }
                 break;
             case userMessage.startsWith('.warn'):
-                const mentionedJidListWarn = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await warnCommand(sock, chatId, senderId, mentionedJidListWarn, message);
+                {
+                  const mentionedJidListWarn = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                  await warnCommand(sock, chatId, senderId, mentionedJidListWarn, message);
+                }
                 break;
             case userMessage.startsWith('.tts'):
-                const text = userMessage.slice(4).trim();
-                await ttsCommand(sock, chatId, text, message);
+                {
+                  const text = userMessage.slice(4).trim();
+                  await ttsCommand(sock, chatId, text, message);
+                }
                 break;
             case userMessage.startsWith('.delete') || userMessage.startsWith('.del'):
                 await deleteCommand(sock, chatId, message, senderId);
@@ -585,9 +591,11 @@ if (userMessage.startsWith('.alwaysonline')) {
                 }
                 break;
             case userMessage.startsWith('.tag'):
-                const messageText = rawText.slice(4).trim();  // use rawText here, not userMessage
-                const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
-                await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
+                {
+                    const messageText = rawText.slice(4).trim();  // use rawText here, not userMessage
+                    const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
+                    await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
+                }
                 break;
             case userMessage.startsWith('.antilink'):
                 if (!isGroup) {
@@ -636,26 +644,33 @@ if (userMessage.startsWith('.alwaysonline')) {
                 await factCommand(sock, chatId, message, message);
                 break;
             case userMessage.startsWith('.weather'):
-                const city = userMessage.slice(9).trim();
-                if (city) {
-                    await weatherCommand(sock, chatId, message, city);
-                } else {
-                    await sock.sendMessage(chatId, { text: 'Please specify a city, e.g., .weather London', ...channelInfo }, { quoted: message });
+                {
+                    const city = userMessage.slice(9).trim();
+                    if (city) {
+                        await weatherCommand(sock, chatId, message, city);
+                    } else {
+                        await sock.sendMessage(chatId, { text: 'Please specify a city, e.g., .weather London', ...channelInfo }, { quoted: message });
+                    }
                 }
                 break;
             case userMessage === '.news':
                 await newsCommand(sock, chatId);
                 break;
             case userMessage.startsWith('.ttt') || userMessage.startsWith('.tictactoe'):
-                const tttText = userMessage.split(' ').slice(1).join(' ');
-                await tictactoeCommand(sock, chatId, senderId, tttText);
+                {
+                    const tttText = userMessage.split(' ').slice(1).join(' ');
+                    await tictactoeCommand(sock, chatId, senderId, tttText);
+                }
                 break;
             case userMessage.startsWith('.move'):
-                const position = parseInt(userMessage.split(' ')[1]);
-                if (isNaN(position)) {
-                    await sock.sendMessage(chatId, { text: 'Please provide a valid position number for Tic-Tac-Toe move.', ...channelInfo }, { quoted: message });
-                } else {
-                    tictactoeMove(sock, chatId, senderId, position);
+                {
+                    const position = parseInt(userMessage.split(' ')[1]);
+                    if (isNaN(position)) {
+                        await sock.sendMessage(chatId, { text: 'Please provide a valid position number for Tic-Tac-Toe move.', ...channelInfo }, { quoted: message });
+                    } else {
+                        // corrected to use the imported handler
+                        await handleTicTacToeMove(sock, chatId, senderId, String(position));
+                    }
                 }
                 break;
             case userMessage === '.topmembers':
@@ -665,22 +680,26 @@ if (userMessage.startsWith('.alwaysonline')) {
                 startHangman(sock, chatId);
                 break;
             case userMessage.startsWith('.guess'):
-                const guessedLetter = userMessage.split(' ')[1];
-                if (guessedLetter) {
-                    guessLetter(sock, chatId, guessedLetter);
-                } else {
-                    sock.sendMessage(chatId, { text: 'Please guess a letter using .guess <letter>', ...channelInfo }, { quoted: message });
+                {
+                    const guessedLetter = userMessage.split(' ')[1];
+                    if (guessedLetter) {
+                        guessLetter(sock, chatId, guessedLetter);
+                    } else {
+                        sock.sendMessage(chatId, { text: 'Please guess a letter using .guess <letter>', ...channelInfo }, { quoted: message });
+                    }
                 }
                 break;
             case userMessage.startsWith('.trivia'):
                 startTrivia(sock, chatId);
                 break;
             case userMessage.startsWith('.answer'):
-                const answer = userMessage.split(' ').slice(1).join(' ');
-                if (answer) {
-                    answerTrivia(sock, chatId, answer);
-                } else {
-                    sock.sendMessage(chatId, { text: 'Please provide an answer using .answer <answer>', ...channelInfo }, { quoted: message });
+                {
+                    const answer = userMessage.split(' ').slice(1).join(' ');
+                    if (answer) {
+                        answerTrivia(sock, chatId, answer);
+                    } else {
+                        sock.sendMessage(chatId, { text: 'Please provide an answer using .answer <answer>', ...channelInfo }, { quoted: message });
+                    }
                 }
                 break;
             case userMessage.startsWith('.compliment'):
@@ -690,23 +709,31 @@ if (userMessage.startsWith('.alwaysonline')) {
                 await insultCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.8ball'):
-                const question = userMessage.split(' ').slice(1).join(' ');
-                await eightBallCommand(sock, chatId, question);
+                {
+                    const question = userMessage.split(' ').slice(1).join(' ');
+                    await eightBallCommand(sock, chatId, question);
+                }
                 break;
             case userMessage.startsWith('.lyrics'):
-                const songTitle = userMessage.split(' ').slice(1).join(' ');
-                await lyricsCommand(sock, chatId, songTitle, message);
+                {
+                    const songTitle = userMessage.split(' ').slice(1).join(' ');
+                    await lyricsCommand(sock, chatId, songTitle, message);
+                }
                 break;
             case userMessage.startsWith('.simp'):
-                const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                const mentionedJid = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await simpCommand(sock, chatId, quotedMsg, mentionedJid, senderId);
+                {
+                    const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+                    const mentionedJid = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                    await simpCommand(sock, chatId, quotedMsg, mentionedJid, senderId);
+                }
                 break;
             case userMessage.startsWith('.stupid') || userMessage.startsWith('.itssostupid') || userMessage.startsWith('.iss'):
-                const stupidQuotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                const stupidMentionedJid = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                const stupidArgs = userMessage.split(' ').slice(1);
-                await stupidCommand(sock, chatId, stupidQuotedMsg, stupidMentionedJid, senderId, stupidArgs);
+                {
+                    const stupidQuotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+                    const stupidMentionedJid = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                    const stupidArgs = userMessage.split(' ').slice(1);
+                    await stupidCommand(sock, chatId, stupidQuotedMsg, stupidMentionedJid, senderId, stupidArgs);
+                }
                 break;
             case userMessage === '.dare':
                 await dareCommand(sock, chatId, message);
@@ -718,12 +745,16 @@ if (userMessage.startsWith('.alwaysonline')) {
                 if (isGroup) await clearCommand(sock, chatId);
                 break;
             case userMessage.startsWith('.promote'):
-                const mentionedJidListPromote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await promoteCommand(sock, chatId, mentionedJidListPromote, message);
+                {
+                    const mentionedJidListPromote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                    await promoteCommand(sock, chatId, mentionedJidListPromote, message);
+                }
                 break;
             case userMessage.startsWith('.demote'):
-                const mentionedJidListDemote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await demoteCommand(sock, chatId, mentionedJidListDemote, message);
+                {
+                    const mentionedJidListDemote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                    await demoteCommand(sock, chatId, mentionedJidListDemote, message);
+                }
                 break;
             case userMessage === '.ping':
                 await pingCommand(sock, chatId, message);
@@ -745,8 +776,10 @@ if (userMessage.startsWith('.alwaysonline')) {
                 }
                 break;
             case userMessage.startsWith('.blur'):
-                const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                await blurCommand(sock, chatId, message, quotedMessage);
+                {
+                    const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+                    await blurCommand(sock, chatId, message, quotedMessage);
+                }
                 break;
             case userMessage.startsWith('.welcome'):
                 if (isGroup) {
@@ -795,9 +828,11 @@ if (userMessage.startsWith('.alwaysonline')) {
                     return;
                 }
 
-                const adminStatus = await isAdmin(sock, chatId, senderId);
-                isSenderAdmin = adminStatus.isSenderAdmin;
-                isBotAdmin = adminStatus.isBotAdmin;
+                {
+                  const adminStatus = await isAdmin(sock, chatId, senderId);
+                  isSenderAdmin = adminStatus.isSenderAdmin;
+                  isBotAdmin = adminStatus.isBotAdmin;
+                }
 
                 if (!isBotAdmin) {
                     await sock.sendMessage(chatId, { text: '*Bot must be admin to use this feature*', ...channelInfo }, { quoted: message });
@@ -813,14 +848,18 @@ if (userMessage.startsWith('.alwaysonline')) {
                 }
 
                 // Check if sender is admin or bot owner
-                const chatbotAdminStatus = await isAdmin(sock, chatId, senderId);
-                if (!chatbotAdminStatus.isSenderAdmin && !message.key.fromMe) {
-                    await sock.sendMessage(chatId, { text: '*Only admins or bot owner can use this command*', ...channelInfo }, { quoted: message });
-                    return;
+                {
+                  const chatbotAdminStatus = await isAdmin(sock, chatId, senderId);
+                  if (!chatbotAdminStatus.isSenderAdmin && !message.key.fromMe) {
+                      await sock.sendMessage(chatId, { text: '*Only admins or bot owner can use this command*', ...channelInfo }, { quoted: message });
+                      return;
+                  }
                 }
 
-                const match = userMessage.slice(8).trim();
-                await handleChatbotCommand(sock, chatId, message, match);
+                {
+                  const match = userMessage.slice(8).trim();
+                  await handleChatbotCommand(sock, chatId, message, match);
+                }
                 break;
             case userMessage.startsWith('.take') || userMessage.startsWith('.steal'):
                 {
@@ -884,8 +923,10 @@ if (userMessage.startsWith('.alwaysonline')) {
                 await clearSessionCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.autostatus'):
-                const autoStatusArgs = userMessage.split(' ').slice(1);
-                await autoStatusCommand(sock, chatId, message, autoStatusArgs);
+                {
+                    const autoStatusArgs = userMessage.split(' ').slice(1);
+                    await autoStatusCommand(sock, chatId, message, autoStatusArgs);
+                }
                 break;
             case userMessage.startsWith('.simp'):
                 await simpCommand(sock, chatId, message);
@@ -945,8 +986,10 @@ if (userMessage.startsWith('.alwaysonline')) {
                 await textmakerCommand(sock, chatId, message, userMessage, 'fire');
                 break;
             case userMessage.startsWith('.antidelete'):
-                const antideleteMatch = userMessage.slice(11).trim();
-                await handleAntideleteCommand(sock, chatId, message, antideleteMatch);
+                {
+                    const antideleteMatch = userMessage.slice(11).trim();
+                    await handleAntideleteCommand(sock, chatId, message, antideleteMatch);
+                }
                 break;
             case userMessage === '.surrender':
                 // Handle surrender command for tictactoe game
@@ -1004,12 +1047,16 @@ if (userMessage.startsWith('.alwaysonline')) {
                 await aiCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.translate') || userMessage.startsWith('.trt'):
-                const commandLength = userMessage.startsWith('.translate') ? 10 : 4;
-                await handleTranslateCommand(sock, chatId, message, userMessage.slice(commandLength));
+                {
+                    const commandLength = userMessage.startsWith('.translate') ? 10 : 4;
+                    await handleTranslateCommand(sock, chatId, message, userMessage.slice(commandLength));
+                }
                 return;
             case userMessage.startsWith('.ss') || userMessage.startsWith('.ssweb') || userMessage.startsWith('.screenshot'):
-                const ssCommandLength = userMessage.startsWith('.screenshot') ? 11 : (userMessage.startsWith('.ssweb') ? 6 : 3);
-                await handleSsCommand(sock, chatId, message, userMessage.slice(ssCommandLength).trim());
+                {
+                    const ssCommandLength = userMessage.startsWith('.screenshot') ? 11 : (userMessage.startsWith('.ssweb') ? 6 : 3);
+                    await handleSsCommand(sock, chatId, message, userMessage.slice(ssCommandLength).trim());
+                }
                 break;
             case userMessage.startsWith('.areact') || userMessage.startsWith('.autoreact') || userMessage.startsWith('.autoreaction'):
                 await handleAreactCommand(sock, chatId, message, isOwnerOrSudoCheck);

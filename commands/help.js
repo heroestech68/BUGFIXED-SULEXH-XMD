@@ -231,7 +231,7 @@ https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16
 `;
 
     try {
-        const imageURL = "https://files.catbox.moe/x6k68g.png";
+        const imageURL = "https://files.catbox.moe/haiyb2.png";
         const audioURL = "https://files.catbox.moe/pox4r9.m4a";
 
         const img = await axios.get(imageURL, { responseType: "arraybuffer" });

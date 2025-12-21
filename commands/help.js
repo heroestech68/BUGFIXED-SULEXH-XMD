@@ -225,13 +225,8 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .script
 ║ ➤ .repo
 ╚═══════════════════╝
-
-Join our channel for updates:
-https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16
-`;
-
     try {
-        const imageURL = "https://files.catbox.moe/haiyb2.png";
+        const videoURL = "https://files.catbox.moe/8na7se.mp4";
         const audioURL = "https://files.catbox.moe/pox4r9.m4a";
 
         const img = await axios.get(imageURL, { responseType: "arraybuffer" });

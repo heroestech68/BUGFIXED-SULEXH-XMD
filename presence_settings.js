@@ -29,7 +29,16 @@ function writeSettings(newValues) {
 }
 
 function setPresence(key, value) {
-    writeSettings({ [key]: value });
+    // Only one of autotyping/autorecording may be enabled at once
+    if (key === "autotyping" && value) {
+        writeSettings({ autotyping: true, autorecording: false });
+    } else if (key === "autorecording" && value) {
+        writeSettings({ autorecording: true, autotyping: false });
+    } else if (key === "alwaysonline") {
+        writeSettings({ alwaysonline: value });
+    } else {
+        writeSettings({ [key]: value });
+    }
 }
 
 module.exports = {

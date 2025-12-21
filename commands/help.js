@@ -225,6 +225,8 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .script
 ║ ➤ .repo
 ╚═══════════════════╝
+
+   Join our channel for updates`;
     try {
         const videoURL = "https://files.catbox.moe/8na7se.mp4";
         const audioURL = "https://files.catbox.moe/pox4r9.m4a";

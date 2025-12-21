@@ -341,7 +341,24 @@ async function startXeonBotInc() {
         XeonBotInc.ev.on('messages.reaction', async (status) => {
             await handleStatus(XeonBotInc, status);
         });
-
+const presenceSettings = require('./presence_settings');
+setInterval(async () => {
+    try {
+        const ps = presenceSettings.getPresenceSettings();
+        const chats = Object.keys(store.chats || XeonBotInc.chats || {});
+        if (ps.alwaysonline) {
+            await XeonBotInc.sendPresenceUpdate('available');
+        }
+        for (const chatId of chats) {
+            if (!chatId.endsWith('@g.us') && !chatId.endsWith('@s.whatsapp.net')) continue;
+            if (ps.autotyping) {
+                await XeonBotInc.sendPresenceUpdate('composing', chatId);
+            } else if (ps.autorecording) {
+                await XeonBotInc.sendPresenceUpdate('recording', chatId);
+            }
+        }
+    } catch (e) {}
+}, 5000);
         return XeonBotInc;
     } catch (error) {
         console.error('Error in startXeonBotInc:', error);

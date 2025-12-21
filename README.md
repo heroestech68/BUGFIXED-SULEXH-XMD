@@ -10,7 +10,7 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
 
 <div align="center"> 
   <a href="https://www.youtube.com/@mentorsulexhtech"> 
-    <img src="https://github.com/mruniquehacker/Knightbot-MD/blob/main/assets/bot_video.mp4" alt="BUGFIXED-SULEXH-XMD" height="300"> 
+    <img src="https://github.com/mruniquehacker/Knightbot-MD/blob/main/assets/assets/tiktokio.com1766325101_yXRxUAWBgIdyrxFmM0Z5.mp4" alt="BUGFIXED-SULEXH-XMD" height="300"> 
   </a> 
 </div>
 

@@ -71,10 +71,10 @@ setInterval(() => {
     }
 }, 30_000); // check every 30 seconds
 
-let phoneNumber = "911234567890";
+let phoneNumber = "254768161116";
 let owner = JSON.parse(fs.readFileSync('./data/owner.json'));
 
-global.botname = "KNIGHT BOT";
+global.botname = "BUGFIXED SULEXH XMD";
 global.themeemoji = "•";
 const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code");
 const useMobile = process.argv.includes("--mobile");
@@ -161,7 +161,7 @@ async function startXeonBotInc() {
                                 forwardingScore: 1,
                                 isForwarded: true,
                                 forwardedNewsletterMessageInfo: {
-                                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@newsletter',
+                                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                                     newsletterName: 'Bugfixed Sulexh Xmd',
                                     serverMessageId: -1
                                 }
@@ -286,7 +286,7 @@ async function startXeonBotInc() {
                             forwardingScore: 1,
                             isForwarded: true,
                             forwardedNewsletterMessageInfo: {
-                                newsletterJid: '0029VbAD3222f3EIZyXe6w16@newsletter',
+                                newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                                 newsletterName: 'Bugfixed Sulexh XMD',
                                 serverMessageId: -1
                             }
@@ -297,7 +297,7 @@ async function startXeonBotInc() {
                 }
 
                 await delay(1999);
-                console.log(chalk.yellow(`\n\n                  ${chalk.bold.blue(`[ ${global.botname || 'KNIGHT BOT'} ]`)}\n\n`));
+                console.log(chalk.yellow(`\n\n                  ${chalk.bold.blue(`[ ${global.botname || 'BUGFIXED SULEXH XMD'} ]`)}\n\n`));
                 console.log(chalk.cyan(`< ================================================== >`));
                 console.log(chalk.magenta(`\n${global.themeemoji || '•'} YT CHANNEL: mentorsulexg`));
                 console.log(chalk.magenta(`${global.themeemoji || '•'} GITHUB: heroestech68`));

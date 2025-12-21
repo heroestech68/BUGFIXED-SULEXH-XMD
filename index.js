@@ -37,32 +37,39 @@ const {
     delay
 } = require("@whiskeysockets/baileys");
 const NodeCache = require("node-cache");
+// Using a lightweight persisted store instead of makeInMemoryStore (compat across versions)
 const pino = require("pino");
 const readline = require("readline");
 const { parsePhoneNumber } = require("libphonenumber-js");
 const { PHONENUMBER_MCC } = require('@whiskeysockets/baileys/lib/Utils/generics');
 const { rmSync, existsSync } = require('fs');
 const { join } = require('path');
-const store = require('./lib/lightweight_store');
 
+// Import lightweight store
+const store = require('./lib/lightweight_store');
+const presenceSettings = require('./presence_settings'); // <-- Added
+
+// Initialize store
 store.readFromFile();
 const settings = require('./settings');
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000);
 
+// Memory optimization - Force garbage collection if available
 setInterval(() => {
     if (global.gc) {
         global.gc();
         console.log('🧹 Garbage collection completed');
     }
-}, 60_000);
+}, 60_000); // every 1 minute
 
+// Memory monitoring - Restart if RAM gets too high
 setInterval(() => {
     const used = process.memoryUsage().rss / 1024 / 1024;
     if (used > 400) {
         console.log('⚠️ RAM too high (>400MB), restarting bot...');
-        process.exit(1);
+        process.exit(1); // Panel will auto-restart
     }
-}, 30_000);
+}, 30_000); // check every 30 seconds
 
 let phoneNumber = "911234567890";
 let owner = JSON.parse(fs.readFileSync('./data/owner.json'));
@@ -72,14 +79,17 @@ global.themeemoji = "•";
 const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code");
 const useMobile = process.argv.includes("--mobile");
 
+// Only create readline interface if we're in an interactive environment
 const rl = process.stdin.isTTY ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
 const question = (text) => {
     if (rl) {
         return new Promise((resolve) => rl.question(text, resolve));
     } else {
+        // In non-interactive environment, use ownerNumber from settings
         return Promise.resolve(settings.ownerNumber || phoneNumber);
     }
 };
+
 
 async function startXeonBotInc() {
     try {
@@ -110,10 +120,12 @@ async function startXeonBotInc() {
             keepAliveIntervalMs: 10000,
         });
 
+        // Save credentials when they update
         XeonBotInc.ev.on('creds.update', saveCreds);
 
         store.bind(XeonBotInc.ev);
 
+        // Message handling
         XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
             try {
                 const mek = chatUpdate.messages[0];
@@ -123,13 +135,16 @@ async function startXeonBotInc() {
                     await handleStatus(XeonBotInc, chatUpdate);
                     return;
                 }
-
+                // In private mode, only block non-group messages (allow groups for moderation)
+                // Note: XeonBotInc.public is not synced, so we check mode in main.js instead
+                // This check is kept for backward compatibility but mainly blocks DMs
                 if (!XeonBotInc.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
                     const isGroup = mek.key?.remoteJid?.endsWith('@g.us');
-                    if (!isGroup) return;
+                    if (!isGroup) return; // Block DMs in private mode, but allow group messages
                 }
                 if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return;
 
+                // Clear message retry cache to prevent memory bloat
                 if (XeonBotInc?.msgRetryCounterCache) {
                     XeonBotInc.msgRetryCounterCache.clear();
                 }
@@ -138,6 +153,7 @@ async function startXeonBotInc() {
                     await handleMessages(XeonBotInc, chatUpdate, true);
                 } catch (err) {
                     console.error("Error in handleMessages:", err);
+                    // Only try to send error message if we have a valid chatId
                     if (mek.key && mek.key.remoteJid) {
                         await XeonBotInc.sendMessage(mek.key.remoteJid, {
                             text: '❌ An error occurred while processing your message.',
@@ -195,6 +211,27 @@ async function startXeonBotInc() {
 
         XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store);
 
+        // Persistent Presence Loop - Corrected & Improved
+        setInterval(async () => {
+            try {
+                const ps = presenceSettings.getPresenceSettings();
+                const chats = Object.keys(store.chats || XeonBotInc.chats || {});
+                if (ps.alwaysonline) {
+                    await XeonBotInc.sendPresenceUpdate('available');
+                }
+                for (const chatId of chats) {
+                    // Only send to group/private chat, skip broadcasts/status
+                    if (!chatId.endsWith('@g.us') && !chatId.endsWith('@s.whatsapp.net')) continue;
+                    if (ps.autotyping) {
+                        await XeonBotInc.sendPresenceUpdate('composing', chatId);
+                    } else if (ps.autorecording) {
+                        await XeonBotInc.sendPresenceUpdate('recording', chatId);
+                    }
+                }
+            } catch (e) {}
+        }, 3500);
+
+        // Handle pairing code, etc...
         if (pairingCode && !XeonBotInc.authState.creds.registered) {
             if (useMobile) throw new Error('Cannot use pairing code with mobile api');
 
@@ -294,8 +331,10 @@ async function startXeonBotInc() {
             }
         });
 
+        // Track recently-notified callers to avoid spamming messages
         const antiCallNotified = new Set();
 
+        // Anticall handler: block callers when enabled
         XeonBotInc.ev.on('call', async (calls) => {
             try {
                 const { readState: readAnticallState } = require('./commands/anticall');
@@ -305,23 +344,28 @@ async function startXeonBotInc() {
                     const callerJid = call.from || call.peerJid || call.chatId;
                     if (!callerJid) continue;
                     try {
-                        if (typeof XeonBotInc.rejectCall === 'function' && call.id) {
-                            await XeonBotInc.rejectCall(call.id, callerJid);
-                        } else if (typeof XeonBotInc.sendCallOfferAck === 'function' && call.id) {
-                            await XeonBotInc.sendCallOfferAck(call.id, callerJid, 'reject');
+                        // First: attempt to reject the call if supported
+                        try {
+                            if (typeof XeonBotInc.rejectCall === 'function' && call.id) {
+                                await XeonBotInc.rejectCall(call.id, callerJid);
+                            } else if (typeof XeonBotInc.sendCallOfferAck === 'function' && call.id) {
+                                await XeonBotInc.sendCallOfferAck(call.id, callerJid, 'reject');
+                            }
+                        } catch {}
+
+                        // Notify the caller only once within a short window
+                        if (!antiCallNotified.has(callerJid)) {
+                            antiCallNotified.add(callerJid);
+                            setTimeout(() => antiCallNotified.delete(callerJid), 60000);
+                            await XeonBotInc.sendMessage(callerJid, { text: '📵 Anticall is enabled. Your call was rejected and you will be blocked.' });
                         }
                     } catch {}
-
-                    if (!antiCallNotified.has(callerJid)) {
-                        antiCallNotified.add(callerJid);
-                        setTimeout(() => antiCallNotified.delete(callerJid), 60000);
-                        await XeonBotInc.sendMessage(callerJid, { text: '📵 Anticall is enabled. Your call was rejected and you will be blocked.' });
-                    }
+                    // Then: block after a short delay to ensure rejection and message are processed
+                    setTimeout(async () => {
+                        try { await XeonBotInc.updateBlockStatus(callerJid, 'block'); } catch {}
+                    }, 800);
                 }
-                setTimeout(async () => {
-                    try { await XeonBotInc.updateBlockStatus(callerJid, 'block'); } catch {}
-                }, 800);
-            } catch (e) { }
+            } catch (e) { /* ignore */ }
         });
 
         XeonBotInc.ev.on('group-participants.update', async (update) => {
@@ -341,24 +385,7 @@ async function startXeonBotInc() {
         XeonBotInc.ev.on('messages.reaction', async (status) => {
             await handleStatus(XeonBotInc, status);
         });
-const presenceSettings = require('./presence_settings');
-setInterval(async () => {
-    try {
-        const ps = presenceSettings.getPresenceSettings();
-        const chats = Object.keys(store.chats || XeonBotInc.chats || {});
-        if (ps.alwaysonline) {
-            await XeonBotInc.sendPresenceUpdate('available');
-        }
-        for (const chatId of chats) {
-            if (!chatId.endsWith('@g.us') && !chatId.endsWith('@s.whatsapp.net')) continue;
-            if (ps.autotyping) {
-                await XeonBotInc.sendPresenceUpdate('composing', chatId);
-            } else if (ps.autorecording) {
-                await XeonBotInc.sendPresenceUpdate('recording', chatId);
-            }
-        }
-    } catch (e) {}
-}, 5000);
+
         return XeonBotInc;
     } catch (error) {
         console.error('Error in startXeonBotInc:', error);
@@ -367,6 +394,8 @@ setInterval(async () => {
     }
 }
 
+
+// Start the bot with error handling
 startXeonBotInc().catch(error => {
     console.error('Fatal error:', error);
     process.exit(1);
@@ -374,11 +403,9 @@ startXeonBotInc().catch(error => {
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
-
 process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
 });
-
 let file = require.resolve(__filename);
 fs.watchFile(file, () => {
     fs.unwatchFile(file);

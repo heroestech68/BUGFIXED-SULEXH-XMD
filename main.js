@@ -512,6 +512,54 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
+            case userMessage.startsWith('.alwaysonline'): {
+    if (!message.key.fromMe && !senderIsOwnerOrSudo) {
+        await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
+        break;
+    }
+    const on = /on\b/i.test(userMessage);
+    const off = /off\b/i.test(userMessage);
+    const ps = require('./presence_settings');
+    if (on || off) {
+        ps.setAlwaysOnline(on);
+        await sock.sendMessage(chatId, { text: on ? '✅ Always Online enabled.' : '❌ Always Online disabled.' });
+    } else {
+        await sock.sendMessage(chatId, { text: `Current: ${ps.isAlwaysOnline() ? 'ENABLED' : 'DISABLED'}\nUsage: .alwaysonline on / off` });
+    }
+    break;
+}
+case userMessage.startsWith('.autorecording'): {
+    if (!message.key.fromMe && !senderIsOwnerOrSudo) {
+        await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
+        break;
+    }
+    const on = /on\b/i.test(userMessage);
+    const off = /off\b/i.test(userMessage);
+    const ps = require('./presence_settings');
+    if (on || off) {
+        ps.setAutorecording(on);
+        await sock.sendMessage(chatId, { text: on ? '✅ Auto Recording enabled.' : '❌ Auto Recording disabled.' });
+    } else {
+        await sock.sendMessage(chatId, { text: `Current: ${ps.isAutorecording() ? 'ENABLED' : 'DISABLED'}\nUsage: .autorecording on / off` });
+    }
+    break;
+}
+case userMessage.startsWith('.autotyping'): {
+    if (!message.key.fromMe && !senderIsOwnerOrSudo) {
+        await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
+        break;
+    }
+    const on = /on\b/i.test(userMessage);
+    const off = /off\b/i.test(userMessage);
+    const ps = require('./presence_settings');
+    if (on || off) {
+        ps.setAutotyping(on);
+        await sock.sendMessage(chatId, { text: on ? '✅ Auto Typing enabled.' : '❌ Auto Typing disabled.' });
+    } else {
+        await sock.sendMessage(chatId, { text: `Current: ${ps.isAutotyping() ? 'ENABLED' : 'DISABLED'}\nUsage: .autotyping on / off` });
+    }
+    break;
+      }
             case userMessage === '.owner':
                 await ownerCommand(sock, chatId);
                 break;

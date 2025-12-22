@@ -142,7 +142,89 @@ const { anticallCommand, readState: readAnticallState } = require('./commands/an
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
+// ;
 
+// ================= PRESENCE COMMANDS (FIXED) =================
+
+function presenceOnlyOwner(sock, chatId, message, senderIsOwnerOrSudo) {
+  if (!message.key.fromMe && !senderIsOwnerOrSudo) {
+    sock.sendMessage(chatId, { text: '❌ Owner / Sudo only command.' }, { quoted: message });
+    return false;
+  }
+  return true;
+}
+
+// ================= MESSAGE HANDLER =================
+
+async function handleMessages(sock, messageUpdate) {
+  const { messages, type } = messageUpdate;
+  if (type !== 'notify') return;
+
+  const message = messages[0];
+  if (!message?.message) return;
+
+  const chatId = message.key.remoteJid;
+  const senderId = message.key.participant || chatId;
+  const isGroup = chatId.endsWith('@g.us');
+  const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
+
+  await handleAutoread(sock, message);
+  storeMessage(sock, message);
+
+  const userMessage =
+    message.message?.conversation ||
+    message.message?.extendedTextMessage?.text ||
+    message.message?.imageMessage?.caption ||
+    message.message?.videoMessage?.caption ||
+    '';
+
+  const text = userMessage.trim().toLowerCase();
+
+  if (!text.startsWith('.')) return;
+
+  // ================= PRESENCE COMMANDS =================
+
+  if (text.startsWith('.alwaysonline')) {
+    if (!presenceOnlyOwner(sock, chatId, message, senderIsOwnerOrSudo)) return;
+    if (text.includes('on')) {
+      presenceSettings.setAlwaysOnline(true);
+      presenceSettings.setAutotyping(false);
+      presenceSettings.setAutorecording(false);
+      await sock.sendMessage(chatId, { text: '✅ Always Online ENABLED' });
+    } else if (text.includes('off')) {
+      presenceSettings.setAlwaysOnline(false);
+      await sock.sendMessage(chatId, { text: '❌ Always Online DISABLED' });
+    }
+    return;
+  }
+
+  if (text.startsWith('.autotyping')) {
+    if (!presenceOnlyOwner(sock, chatId, message, senderIsOwnerOrSudo)) return;
+    if (text.includes('on')) {
+      presenceSettings.setAutotyping(true);
+      presenceSettings.setAutorecording(false);
+      presenceSettings.setAlwaysOnline(false);
+      await sock.sendMessage(chatId, { text: '⌨️ Auto Typing ENABLED' });
+    } else if (text.includes('off')) {
+      presenceSettings.setAutotyping(false);
+      await sock.sendMessage(chatId, { text: '⌨️ Auto Typing DISABLED' });
+    }
+    return;
+  }
+
+  if (text.startsWith('.autorecording')) {
+    if (!presenceOnlyOwner(sock, chatId, message, senderIsOwnerOrSudo)) return;
+    if (text.includes('on')) {
+      presenceSettings.setAutorecording(true);
+      presenceSettings.setAutotyping(false);
+      presenceSettings.setAlwaysOnline(false);
+      await sock.sendMessage(chatId, { text: '🎙️ Auto Recording ENABLED' });
+    } else if (text.includes('off')) {
+      presenceSettings.setAutorecording(false);
+      await sock.sendMessage(chatId, { text: '🎙️ Auto Recording DISABLED' });
+    }
+    return;
+    }
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;

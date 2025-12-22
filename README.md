@@ -8,10 +8,11 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
   </a> 
 </div> 
 
-<div align="center"> 
-  <a href="https://www.youtube.com/@mentorsulexhtech"> 
-    <img src="https://github.com/mruniquehacker/Knightbot-MD/blob/main/assets/assets/bot_image.jpg" alt="BUGFIXED-SULEXH-XMD" height="300"> 
-  </a> 
+<!-- AUTOPLAY VIDEO (Muted, Looping, Always Playing) -->
+<div align="center">
+  <video width="600" autoplay muted loop playsinline>
+    <source src="https://files.catbox.moe/8na7se.mp4" type="video/mp4">
+  </video>
 </div>
 
 <div align="center">
@@ -27,11 +28,9 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
 
 ### Step 1: Fork the Repository
 
-Click the button below to fork the BUGFIXED-SULEXH-XMD repository to your GitHub account:
-
 <div align="center">
   <a href="https://github.com/mruniquehacker/Knightbot-MD/fork">
-    <img src="https://img.shields.io/badge/Fork-Repository-blue?style=for-the-badge" alt="Fork the repository"/>
+    <img src="https://img.shields.io/badge/Fork-Repository-blue?style=for-the-badge" />
   </a>
 </div>
 
@@ -39,14 +38,11 @@ Click the button below to fork the BUGFIXED-SULEXH-XMD repository to your GitHub
 
 ### Step 2: Get Pair Code
 
-Deploy the bot and easily connect it to your WhatsApp account by pair code. Click the button below to deploy the bot on Replit.
-
 <div align="center">
   <a href="https://knight-bot-paircode.onrender.com" target="_blank">
-    <img src="https://img.shields.io/badge/GET%20PAIR%20CODE-Easy%20Method-ff4d4d?style=for-the-badge" alt="Generate Pair Code"/>
+    <img src="https://img.shields.io/badge/GET%20PAIR%20CODE-Easy%20Method-ff4d4d?style=for-the-badge" />
   </a>
 </div>
-
 
 ### After getting creds.json file, upload it to session folder
 
@@ -54,40 +50,12 @@ Deploy the bot and easily connect it to your WhatsApp account by pair code. Clic
 
 ### Step 3: Deploy Now
 
-For further customization and setup guidance, click the button below:
-
 <div align="center">
   <a href="https://youtu.be/-oz_u1iMgf8">
-    <img src="https://img.shields.io/badge/Deploy Tutorial-dc3545?style=for-the-badge&logo=youtube" alt="YouTube Link"/>
+    <img src="https://img.shields.io/badge/Deploy Tutorial-dc3545?style=for-the-badge&logo=youtube" />
   </a>
   <a href="https://bot-hosting.net/?aff=1068419752923508776">
-    <img src="https://img.shields.io/badge/Deploy on Panel-28a745?style=for-the-badge" alt="Deploy on Panel"/>
-  </a>
-</div>
-
-### Deploy on VPS
-
-<div align="center">
-  <a href="https://client.petrosky.io/aff.php?aff=394" target="_blank">
-    <img src="https://img.shields.io/badge/petrosky vps-0078E7?style=for-the-badge" alt="petrosky vps"/>
-  </a>
-</div>
-
-### Deploy on Below Panel
-<div align="center">
-<a href="https://dashboard.katabump.com/auth/login#d6b7d6" target="_blank">
-  <img src="https://img.shields.io/badge/Katabump-D6B7D6?style=for-the-badge&logo=server&logoColor=black" alt="Katabump"/>
-</a>
-</div>
-
-### Join Us
-
-<div align="center">
-  <a href="https://t.me/+9UXk6jvUORs5NjA0">
-    <img src="https://img.shields.io/badge/Join%20Telegram-0078E7?style=for-the-badge&logo=telegram&logoColor=white" alt="Join Telegram"/>
-  </a>
-  <a href="https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16">
-    <img src="https://img.shields.io/badge/Join%20WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Join WhatsApp"/>
+    <img src="https://img.shields.io/badge/Deploy on Panel-28a745?style=for-the-badge" />
   </a>
 </div>
 
@@ -95,108 +63,60 @@ For further customization and setup guidance, click the button below:
 
 ## ⚙️ Features
 
-- **Tag all group members** with the `.tagall` command
-- **Admin restricted usage** (Only group admins can use certain commands)
-- **Games** like Tic-Tac-Toe for interactive group engagement
-- **Text-to-Speech** with `.tts`
-- **Sticker creation** with `.sticker`
-- **Anti-link detection** for group safety
-- **Warn and manage group members** with admin control
+- Tag all members  
+- Admin-only commands  
+- Games (Tic-Tac-Toe)  
+- Text-to-Speech  
+- Sticker creation  
+- Anti-link protection  
+- Group moderation tools  
 
 ---
 
 ## 📖 About
 
-The Bugfixed WhatsApp Bot assists group admins by providing them with tools to efficiently manage large WhatsApp groups. The bot uses the Baileys library to interact with the WhatsApp Web API and supports multi-device features.
-
-It is lightweight and can be easily customized to add more commands as per your requirements. The bot runs in a Node.js environment and provides QR code-based authentication to link your WhatsApp account.
+Bugfixed Sulexh XMD helps WhatsApp group admins manage groups efficiently using the Baileys multi-device library.
 
 ---
 
 ## 🛠️ Setup & Installation
 
-### Prerequisites
+```bash
+git clone https://github.com/mruniquehacker/Knightbot-MD.git
+cd Knightbot-MD
+npm install
+node index.js
 
-- Node.js installed on your system
-- Git installed (for cloning the repository)
+Scan the QR code from WhatsApp → Linked Devices.
 
-### Step-by-Step Setup
-
-1. **Clone the repository:**
-
-    ```bash
-    git clone https://github.com/mruniquehacker/Knightbot-MD.git
-    cd Knightbot-MD
-    ```
-
-2. **Install the dependencies:**
-
-    ```bash
-    npm install
-    ```
-
-3. **Run the bot:**
-
-    ```bash
-    node index.js
-    ```
-
-4. **Scan the QR code:**
-
-    Once the bot starts, a QR code will appear in the terminal. Scan this QR code using the Linked Devices feature in WhatsApp to connect your WhatsApp account with the bot.
 
 ---
 
+📄 License
 
-## 📄 License
+MIT License
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) - see the [LICENSE](https://github.com/mruniquehacker/Knightbot-MD/blob/main/LICENSE) file for details.
 
 ---
 
-## 🙌 Contributions
+⚠️ Warning
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/mruniquehacker/Knightbot-MD/issues).
+This is an unofficial WhatsApp bot for educational purposes only.
+Use at your own risk.
+
 
 ---
 
-## 🌟 Show your support
+📜 Copyright
 
-If you like this project, please give it a [⭐️ star on GitHub](https://github.com/mruniquehacker/Knightbot)!
-
-
-## Credits
-
-- [Professor](https://github.com/mruniquehacker)
-- [Baileys](https://github.com/adiwajshing/Baileys)
-- [TechGod143](https://github.com/TechGod143) for pair code
-- [Dgxeon](https://github.com/Dgxeon) for pair code
+© 2024 Professor. All rights reserved.
 
 ---
 
-## ⚠️ Important Warning
+✅ **Result on GitHub**
+- Silent autoplay  
+- Always looping  
+- No controls  
+- Clean & professional  
 
-**Note:** This bot is created for educational purposes only. This is NOT an official WhatsApp bot. Using this bot may lead to your WhatsApp account being banned. Use it at your own risk. The developers will not be responsible for any consequences or account bans that may occur while using this bot.
-
-## 📝 Legal
-
-- This project is not affiliated with, authorized, maintained, sponsored or endorsed by WhatsApp or any of its affiliates or subsidiaries.
-- This is an independent and unofficial software. Use at your own risk.
-- Do not spam people with this bot.
-- Do not use this bot to send bulk messages or for illegal purposes.
-- The developers assume no liability and are not responsible for any misuse or damage caused by this program.
-
-### License
-This project is licensed under the MIT License. However, you must:
-- Use this software in compliance with all applicable laws and regulations
-- Include original license and copyright notices
-- Credit original authors
-- Not use for spam or malicious purposes
-
-## 📜 Copyright Notice
-
-Copyright (c) 2024 Professor. All rights reserved.
-
-This project contains code from various open source projects:
-- Baileys (MIT License)
-- Other libraries as listed in package.json
+If you want **full-width video**, **mobile-optimized**, or **poster thumbnail**, tell me 👍

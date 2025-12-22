@@ -8,11 +8,9 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
   </a> 
 </div> 
 
-<!-- AUTOPLAY VIDEO (Muted, Looping, Always Playing) -->
+<!-- AUTOPLAY GIF (Always Playing, GitHub Supported) -->
 <div align="center">
-  <video width="600" autoplay muted loop playsinline>
-    <source src="https://files.catbox.moe/8na7se.mp4" type="video/mp4">
-  </video>
+  <img src="assets/ezgif-382349d3b7b074f9.gif" width="600" alt="Bugfixed Sulexh XMD Demo"/>
 </div>
 
 <div align="center">
@@ -44,7 +42,7 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
   </a>
 </div>
 
-### After getting creds.json file, upload it to session folder
+**After getting `creds.json`, upload it to the `session` folder**
 
 ---
 
@@ -86,37 +84,3 @@ git clone https://github.com/mruniquehacker/Knightbot-MD.git
 cd Knightbot-MD
 npm install
 node index.js
-
-Scan the QR code from WhatsApp → Linked Devices.
-
-
----
-
-📄 License
-
-MIT License
-
-
----
-
-⚠️ Warning
-
-This is an unofficial WhatsApp bot for educational purposes only.
-Use at your own risk.
-
-
----
-
-📜 Copyright
-
-© 2024 Professor. All rights reserved.
-
----
-
-✅ **Result on GitHub**
-- Silent autoplay  
-- Always looping  
-- No controls  
-- Clean & professional  
-
-If you want **full-width video**, **mobile-optimized**, or **poster thumbnail**, tell me 👍

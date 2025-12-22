@@ -629,8 +629,7 @@ case userMessage.startsWith('.autorecording'): {
 case userMessage.startsWith('.autotyping'): {
     if (!message.key.fromMe && !senderIsOwnerOrSudo) {
         await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
-    }
-      break;
+        break;
     }
     const on = /on\b/i.test(userMessage);
     const off = /off\b/i.test(userMessage);
@@ -642,8 +641,9 @@ case userMessage.startsWith('.autotyping'): {
         await sock.sendMessage(chatId, { text: `Current: ${ps.isAutotyping() ? 'ENABLED' : 'DISABLED'}\nUsage: .autotyping on / off` });
     }
     break;
-      }
-            case userMessage === '.owner':
+}
+} // ✅ Final closing brace added to terminate the switch block
+  case userMessage === '.owner':
                 await ownerCommand(sock, chatId);
                 break;
              case userMessage === '.tagall':

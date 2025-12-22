@@ -1,54 +1,50 @@
-const fs = require('fs');
-const path = require('path');
+// =======================
+// PROLONGED FAKE PRESENCE ENGINE
+// =======================
 
-const configPath = path.resolve(__dirname, 'presence-settings.json');
+let lastPresenceChat = null;
+let lastPulse = 0;
 
-function getDefaults() {
-    return {
-        alwaysonline: false,
-        autotyping: false,
-        autorecording: false
-    };
+function pickActiveChat() {
+    const chats = Object.keys(store.chats || {});
+    return chats.find(j =>
+        j.endsWith('@s.whatsapp.net') || j.endsWith('@g.us')
+    ) || null;
 }
 
-function readSettings() {
+setInterval(async () => {
     try {
-        if (!fs.existsSync(configPath)) fs.writeFileSync(configPath, JSON.stringify(getDefaults(), null, 2));
-        const data = JSON.parse(fs.readFileSync(configPath));
-        return { ...getDefaults(), ...data };
-    } catch (e) {
-        return getDefaults();
-    }
-}
+        const ps = presenceSettings.getPresenceSettings();
+        const chatId = pickActiveChat();
+        if (!chatId) return;
 
-function writeSettings(newValues) {
-    const current = readSettings();
-    const data = { ...current, ...newValues };
-    fs.writeFileSync(configPath, JSON.stringify(data, null, 2));
-    return data;
-}
+        const now = Date.now();
 
-function setPresence(key, value) {
-    // Only one of autotyping/autorecording may be enabled at once
-    if (key === "autotyping" && value) {
-        writeSettings({ autotyping: true, autorecording: false });
-    } else if (key === "autorecording" && value) {
-        writeSettings({ autorecording: true, autotyping: false });
-    } else if (key === "alwaysonline") {
-        writeSettings({ alwaysonline: value });
-    } else {
-        writeSettings({ [key]: value });
-    }
-}
+        // Avoid hammering same presence too fast
+        if (now - lastPulse < 9000) return;
+        lastPulse = now;
+        lastPresenceChat = chatId;
 
-module.exports = {
-    getPresenceSettings: readSettings,
-    setPresence,
-    isAlwaysOnline: () => readSettings().alwaysonline,
-    isAutotyping: () => readSettings().autotyping,
-    isAutorecording: () => readSettings().autorecording,
-    setAlwaysOnline: v => setPresence('alwaysonline', v),
-    setAutotyping: v => setPresence('autotyping', v),
-    setAutorecording: v => setPresence('autorecording', v),
-    configPath
-};
+        // 🔵 ALWAYS ONLINE
+        if (ps.alwaysonline) {
+            await XeonBotInc.sendPresenceUpdate('available', chatId);
+            return;
+        }
+
+        // ✍️ PROLONGED TYPING
+        if (ps.autotyping) {
+            await XeonBotInc.sendPresenceUpdate('composing', chatId);
+            return;
+        }
+
+        // 🎙️ PROLONGED RECORDING
+        if (ps.autorecording) {
+            await XeonBotInc.sendPresenceUpdate('recording', chatId);
+            return;
+        }
+
+        // If all OFF → reset
+        await XeonBotInc.sendPresenceUpdate('available', chatId);
+
+    } catch {}
+}, 10_000); // 👈 perfect keep-alive window

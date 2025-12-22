@@ -629,7 +629,8 @@ case userMessage.startsWith('.autorecording'): {
 case userMessage.startsWith('.autotyping'): {
     if (!message.key.fromMe && !senderIsOwnerOrSudo) {
         await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
-        break;
+    }
+      break;
     }
     const on = /on\b/i.test(userMessage);
     const off = /off\b/i.test(userMessage);

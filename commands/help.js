@@ -1,11 +1,9 @@
 const settings = require('../settings');
-const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
 
 async function helpCommand(sock, chatId, message) {
 
-    const helpMessage = `
+const helpMessage = `
 ╔═══════════════════╗
    *🤖 ${settings.botName || 'BUGFIXED-SULEXH-XMD'}*  
    Version: *${settings.version || '3.0.5'}*
@@ -17,7 +15,7 @@ async function helpCommand(sock, chatId, message) {
 
 ╔═══════════════════╗
 🌐 *General Commands*:
-║ ➤ .help or .menu
+║ ➤ .help / .menu
 ║ ➤ .ping
 ║ ➤ .alive
 ║ ➤ .tts <text>
@@ -31,7 +29,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .lyrics <song_title>
 ║ ➤ .8ball <question>
 ║ ➤ .groupinfo
-║ ➤ .staff or .admins 
+║ ➤ .staff / .admins
 ║ ➤ .vv
 ║ ➤ .trt <text> <lang>
 ║ ➤ .ss <link>
@@ -46,7 +44,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .demote @user
 ║ ➤ .mute <minutes>
 ║ ➤ .unmute
-║ ➤ .delete or .del
+║ ➤ .delete / .del
 ║ ➤ .kick @user
 ║ ➤ .warnings @user
 ║ ➤ .warn @user
@@ -98,23 +96,13 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .removebg
 ║ ➤ .remini
 ║ ➤ .crop <reply to image>
-║ ➤ .tgsticker <Link>
+║ ➤ .tgsticker <link>
 ║ ➤ .meme
-║ ➤ .take <packname> 
+║ ➤ .take <packname>
 ║ ➤ .emojimix <emj1>+<emj2>
 ║ ➤ .igs <insta link>
 ║ ➤ .igsc <insta link>
 ╚═══════════════════╝  
-
-╔═══════════════════╗
-🖼️ *Pies Commands*:
-║ ➤ .pies <country>
-║ ➤ .china 
-║ ➤ .indonesia 
-║ ➤ .japan 
-║ ➤ .korea 
-║ ➤ .hijab
-╚═══════════════════╝
 
 ╔═══════════════════╗
 🎮 *Game Commands*:
@@ -140,7 +128,7 @@ async function helpCommand(sock, chatId, message) {
 🎯 *Fun Commands*:
 ║ ➤ .compliment @user
 ║ ➤ .insult @user
-║ ➤ .flirt 
+║ ➤ .flirt
 ║ ➤ .shayari
 ║ ➤ .goodnight
 ║ ➤ .roseday
@@ -193,32 +181,32 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .lgbt
 ║ ➤ .lolice
 ║ ➤ .its-so-stupid
-║ ➤ .namecard 
+║ ➤ .namecard
 ║ ➤ .oogway
 ║ ➤ .tweet
-║ ➤ .ytcomment 
-║ ➤ .comrade 
-║ ➤ .gay 
-║ ➤ .glass 
-║ ➤ .jail 
-║ ➤ .passed 
+║ ➤ .ytcomment
+║ ➤ .comrade
+║ ➤ .gay
+║ ➤ .glass
+║ ➤ .jail
+║ ➤ .passed
 ║ ➤ .triggered
 ╚═══════════════════╝
 
 ╔═══════════════════╗
 🖼️ *ANIME*:
-║ ➤ .nom 
-║ ➤ .poke 
-║ ➤ .cry 
-║ ➤ .kiss 
-║ ➤ .pat 
-║ ➤ .hug 
-║ ➤ .wink 
-║ ➤ .facepalm 
+║ ➤ .nom
+║ ➤ .poke
+║ ➤ .cry
+║ ➤ .kiss
+║ ➤ .pat
+║ ➤ .hug
+║ ➤ .wink
+║ ➤ .facepalm
 ╚═══════════════════╝
 
 ╔═══════════════════╗
-💻 *Github Commands:*
+💻 *Github Commands*:
 ║ ➤ .git
 ║ ➤ .github
 ║ ➤ .sc
@@ -226,38 +214,65 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .repo
 ╚═══════════════════╝
 
-   Join our channel for updates`;
-    try {
-        const videoURL = "https://files.catbox.moe/8na7se.mp4";
-        const audioURL = "https://files.catbox.moe/pox4r9.m4a";
+🔔 *Join our OFFICIAL WhatsApp Channel below*
+`;
 
-        const img = await axios.get(imageURL, { responseType: "arraybuffer" });
-        const audio = await axios.get(audioURL, { responseType: "arraybuffer" });
+try {
+    const videoURL = "https://files.catbox.moe/8na7se.mp4";
+    const audioURL = "https://files.catbox.moe/larc7j.mp3";
 
-        await sock.sendMessage(
-            chatId,
-            {
-                image: img.data,
-                caption: helpMessage,
-                contextInfo: {
-                    newsletterJid: "0029VbAD3222f3EIZyXe6w16@broadcast",
-                    newsletterName: "BUGFIXED-SULEXH-XMD",
-                    serverMessageId: -1
-                }
-            },
-            { quoted: message }
-        );
+    // SEND VIDEO MENU
+    await sock.sendMessage(
+        chatId,
+        {
+            video: { url: videoURL },
+            caption: helpMessage,
+            gifPlayback: true,
+            footer: 'BUGFIXED-SULEXH-XMD',
+            buttons: [
+                { buttonId: 'owner_contact', buttonText: { displayText: '👑 Owner' }, type: 1 },
+                { buttonId: 'view_channel', buttonText: { displayText: '🔔 View Channel' }, type: 1 }
+            ],
+            headerType: 4,
+            contextInfo: {
+                newsletterJid: "0029VbAD3222f3EIZyXe6w16@broadcast",
+                newsletterName: "BUGFIXED-SULEXH-XMD",
+                serverMessageId: -1
+            }
+        },
+        { quoted: message }
+    );
 
-        await sock.sendMessage(chatId, {
-            audio: audio.data,
-            mimetype: "audio/m4a",
-            ptt: false
-        });
+    // SEND AUDIO MENU
+    const audio = await axios.get(audioURL, { responseType: 'arraybuffer' });
+    await sock.sendMessage(chatId, {
+        audio: audio.data,
+        mimetype: 'audio/mpeg',
+        ptt: false
+    });
 
-    } catch (err) {
-        console.error("HELP CMD ERROR:", err);
-        await sock.sendMessage(chatId, { text: helpMessage });
+} catch (error) {
+    console.error("HELP MENU ERROR:", error);
+    await sock.sendMessage(chatId, { text: helpMessage });
+}
+
+// BUTTON HANDLER
+sock.ev.on('messages.upsert', async (m) => {
+    if (!m.messages) return;
+    const msg = m.messages[0];
+    if (!msg.message) return;
+    const type = Object.keys(msg.message)[0];
+
+    if (type === 'buttonsResponseMessage') {
+        const id = msg.message.buttonsResponseMessage.selectedButtonId;
+        if (id === 'owner_contact') {
+            await sock.sendMessage(chatId, { text: 'Contact Owner: wa.me/254768161116' });
+        } else if (id === 'view_channel') {
+            await sock.sendMessage(chatId, { text: 'View Channel: https://chat.whatsapp.com/yourchannellink' });
+        }
     }
+});
+
 }
 
 module.exports = helpCommand;

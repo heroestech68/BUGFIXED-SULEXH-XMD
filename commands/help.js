@@ -221,7 +221,7 @@ try {
     const videoURL = "https://files.catbox.moe/8na7se.mp4";
     const audioURL = "https://files.catbox.moe/larc7j.mp3";
 
-    // SEND VIDEO MENU
+    // ✅ SEND VIDEO MENU
     await sock.sendMessage(
         chatId,
         {
@@ -229,9 +229,19 @@ try {
             caption: helpMessage,
             gifPlayback: true,
             footer: 'BUGFIXED-SULEXH-XMD',
-            buttons: [
-                { buttonId: 'owner_contact', buttonText: { displayText: '👑 Owner' }, type: 1 },
-                { buttonId: 'view_channel', buttonText: { displayText: '🔔 View Channel' }, type: 1 }
+            templateButtons: [
+                {
+                    urlButton: {
+                        displayText: '👑 Owner',
+                        url: 'https://wa.me/254768161116'
+                    }
+                },
+                {
+                    urlButton: {
+                        displayText: '🔔 View Channel',
+                        url: 'https://whatsapp.com/channel/0029VbAD3222f3EIZyXe6w16'
+                    }
+                }
             ],
             headerType: 4,
             contextInfo: {
@@ -243,7 +253,7 @@ try {
         { quoted: message }
     );
 
-    // SEND AUDIO MENU
+    // ✅ SEND AUDIO MENU
     const audio = await axios.get(audioURL, { responseType: 'arraybuffer' });
     await sock.sendMessage(chatId, {
         audio: audio.data,
@@ -255,23 +265,6 @@ try {
     console.error("HELP MENU ERROR:", error);
     await sock.sendMessage(chatId, { text: helpMessage });
 }
-
-// BUTTON HANDLER
-sock.ev.on('messages.upsert', async (m) => {
-    if (!m.messages) return;
-    const msg = m.messages[0];
-    if (!msg.message) return;
-    const type = Object.keys(msg.message)[0];
-
-    if (type === 'buttonsResponseMessage') {
-        const id = msg.message.buttonsResponseMessage.selectedButtonId;
-        if (id === 'owner_contact') {
-            await sock.sendMessage(chatId, { text: 'Contact Owner: wa.me/254768161116' });
-        } else if (id === 'view_channel') {
-            await sock.sendMessage(chatId, { text: 'View Channel: https://chat.whatsapp.com/yourchannellink' });
-        }
-    }
-});
 
 }
 

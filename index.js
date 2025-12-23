@@ -14,6 +14,14 @@ const NodeCache = require('node-cache')
 const pino = require('pino')
 const PhoneNumber = require('awesome-phonenumber')
 
+// Ensure tmp directory exists
+const path = require('path')
+const tmpDir = path.join(__dirname, 'tmp')
+if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true })
+    console.log(`[Init] Created missing tmp directory at ${tmpDir}`)
+}
+
 const {
     default: makeWASocket,
     useMultiFileAuthState,

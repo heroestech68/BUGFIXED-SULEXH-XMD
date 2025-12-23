@@ -1,114 +1,89 @@
-const axios = require('axios');
-const { sleep } = require('../lib/myfunc');
+/**
+ * myfunc.js - BUGFIXED-SULEXH-XMD WhatsApp Bot
+ * CommonJS, Panel-safe, No Chalk
+ */
 
-async function pairCommand(sock, chatId, message, q) {
+const { proto, getContentType } = require('@whiskeysockets/baileys')
+const fs = require('fs')
+const Crypto = require('crypto')
+const axios = require('axios')
+const moment = require('moment-timezone')
+const { sizeFormatter } = require('human-readable')
+const util = require('util')
+const Jimp = require('jimp')
+const path = require('path')
+const { tmpdir } = require('os')
+
+// --- UTILITIES ---
+exports.sleep = ms => new Promise(r => setTimeout(r, ms))
+exports.unixTimestampSeconds = date => Math.floor((date || new Date()).getTime()/1000)
+
+exports.generateMessageTag = (epoch) => {
+    let tag = exports.unixTimestampSeconds().toString()
+    if(epoch) tag += '.--' + epoch
+    return tag
+}
+
+exports.processTime = (timestamp, now) => moment.duration(now - moment(timestamp*1000)).asSeconds()
+
+exports.getRandom = ext => `${Math.floor(Math.random()*10000)}${ext}`
+
+exports.getBuffer = async (url, options={}) => {
     try {
-        if (!q) {
-            return await sock.sendMessage(chatId, {
-                text: "Please provide valid WhatsApp number\nExample: .pair 91702395XXXX",
-                contextInfo: {
-                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                        newsletterName: 'BUGFIXED-SULEXH-XMD',
-                        serverMessageId: -1
-                    }
-                }
-            });
-        }
+        const res = await axios.get(url, { responseType:'arraybuffer', ...options })
+        return res.data
+    } catch(err) { return err }
+}
 
-        const numbers = q.split(',')
-            .map((v) => v.replace(/[^0-9]/g, ''))
-            .filter((v) => v.length > 5 && v.length < 20);
+exports.fetchJson = async (url, options={}) => {
+    try {
+        const res = await axios.get(url, { ...options })
+        return res.data
+    } catch(err) { return err }
+}
 
-        if (numbers.length === 0) {
-            return await sock.sendMessage(chatId, {
-                text: "Invalid number❌️ Please use the correct format!",
-                contextInfo: {
-                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast', // Corrected 'newsletterJ' to 'newsletterJid'
-                        newsletterName: 'BUGFIXED-SULEXH-XMD',
-                        serverMessageId: -1
-                    }
-                }
-            });
-        }
+exports.clockString = ms => {
+    const h = isNaN(ms)?'--':Math.floor(ms/3600000)
+    const m = isNaN(ms)?'--':Math.floor(ms/60000)%60
+    const s = isNaN(ms)?'--':Math.floor(ms/1000)%60
+    return [h,m,s].map(v=>v.toString().padStart(2,'0')).join(':')
+}
 
-        for (const number of numbers) {
-            const whatsappID = number + '@s.whatsapp.net';
-            const result = await sock.onWhatsApp(whatsappID);
+exports.formatp = sizeFormatter({ std:'JEDEC', decimalPlaces:2, keepTrailingZeroes:false, render:(l,s)=>`${l} ${s}B` })
 
-            if (!result[0]?.exists) {
-                return await sock.sendMessage(chatId, {
-                    text: `That number is not registered on WhatsApp❗️`,
-                    contextInfo: {
-                            newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast', // Corrected 'newsletterJ' to 'newsletterJid'
-                            newsletterName: 'BUGFIXED-SULEXH-XMD',
-                            serverMessageId: -1
-                        }
-                    }
-                });
-            }
+exports.bytesToSize = (bytes, decimals=2)=>{
+    if(bytes===0) return '0 Bytes'
+    const k=1024
+    const dm=decimals<0?0:decimals
+    const sizes=['Bytes','KB','MB','GB','TB','PB','EB','ZB','YB']
+    const i=Math.floor(Math.log(bytes)/Math.log(k))
+    return parseFloat((bytes/Math.pow(k,i)).toFixed(dm))+' '+sizes[i]
+}
 
-            await sock.sendMessage(chatId, {
-                text: "Wait a moment for the code",
-                contextInfo: {
-                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                        newsletterName: 'BUGFIXED-SULEXH-XMD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+exports.getSizeMedia = path => new Promise((resolve,reject)=>{
+    if(/http/.test(path)){
+        axios.get(path).then(res=>{
+            const length=parseInt(res.headers['content-length'])
+            const size=exports.bytesToSize(length,3)
+            if(!isNaN(length)) resolve(size)
+        })
+    } else if(Buffer.isBuffer(path)){
+        const length=Buffer.byteLength(path)
+        const size=exports.bytesToSize(length,3)
+        if(!isNaN(length)) resolve(size)
+    } else reject('error unknown')
+})
 
-            try {
-                const response = await axios.get(`https://knight-bot-paircode.onrender.com/code?number=${number}`);
-
-                if (response.data && response.data.code) {
-                    const code = response.data.code;
-                    if (code === "Service Unavailable") {
-                        throw new Error('Service Unavailable');
-                    }
-
-                    await sleep(5000);
-                    await sock.sendMessage(chatId, {
-                        text: `Your pairing code: ${code}`,
-                        contextInfo: {
-                                newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                                newsletterName: 'BUGFIXED-SULEXH-XMD',
-                                serverMessageId: -1
-                            }
-                        }
-                    });
-                } else {
-                    throw new Error('Invalid response from server');
-                }
-            } catch (apiError) {
-                console.error('API Error:', apiError);
-                const errorMessage = apiError.message === 'Service Unavailable'
-                    ? "Service is currently unavailable. Please try again later."
-                    : "Failed to generate pairing code. Please try again later.";
-
-                await sock.sendMessage(chatId, {
-                    text: errorMessage,
-                    contextInfo: {
-                            newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                            newsletterName: 'BUGFIXED-SULEXH-XMD',
-                            serverMessageId: -1
-                        }
-                    }
-                });
-            }
-        }
-    } catch (error) {
-        console.error(error);
-        await sock.sendMessage(chatId, {
-            text: "An error occurred. Please try again later.",
-            contextInfo: {
-                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
-                    newsletterName: 'BUGFIXED-SULEXH-XMD',
-                    serverMessageId: -1
-                }
-            }
-        });
+exports.generateProfilePicture = async buffer=>{
+    const img = await Jimp.read(buffer)
+    const min = img.getWidth()
+    const max = img.getHeight()
+    const cropped = img.crop(0,0,min,max)
+    return {
+        img: await cropped.scaleToFit(720,720).getBufferAsync(Jimp.MIME_JPEG),
+        preview: await cropped.scaleToFit(720,720).getBufferAsync(Jimp.MIME_JPEG)
     }
 }
 
-module.exports = pairCommand;
-```
+exports.parseMention = text => [...(text||'').matchAll(/@([0-9]{5,16}|0)/g)].map(v=>v[1]+'@s.whatsapp.net')
+exports.getGroupAdmins = participants => participants.filter(p=>p.admin==='superadmin'||p.admin==='admin').map(p=>p.id)

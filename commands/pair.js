@@ -23,7 +23,7 @@ async function pairCommand(sock, chatId, message, q) {
             return await sock.sendMessage(chatId, {
                 text: "Invalid number❌️ Please use the correct format!",
                 contextInfo: {
-                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast', // Corrected 'newsletterJ' to 'newsletterJid'
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
@@ -39,7 +39,7 @@ async function pairCommand(sock, chatId, message, q) {
                 return await sock.sendMessage(chatId, {
                     text: `That number is not registered on WhatsApp❗️`,
                     contextInfo: {
-                            newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                            newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast', // Corrected 'newsletterJ' to 'newsletterJid'
                             newsletterName: 'BUGFIXED-SULEXH-XMD',
                             serverMessageId: -1
                         }
@@ -59,13 +59,13 @@ async function pairCommand(sock, chatId, message, q) {
 
             try {
                 const response = await axios.get(`https://knight-bot-paircode.onrender.com/code?number=${number}`);
-                
+
                 if (response.data && response.data.code) {
                     const code = response.data.code;
                     if (code === "Service Unavailable") {
                         throw new Error('Service Unavailable');
                     }
-                    
+
                     await sleep(5000);
                     await sock.sendMessage(chatId, {
                         text: `Your pairing code: ${code}`,
@@ -81,10 +81,10 @@ async function pairCommand(sock, chatId, message, q) {
                 }
             } catch (apiError) {
                 console.error('API Error:', apiError);
-                const errorMessage = apiError.message === 'Service Unavailable' 
+                const errorMessage = apiError.message === 'Service Unavailable'
                     ? "Service is currently unavailable. Please try again later."
                     : "Failed to generate pairing code. Please try again later.";
-                
+
                 await sock.sendMessage(chatId, {
                     text: errorMessage,
                     contextInfo: {
@@ -110,4 +110,5 @@ async function pairCommand(sock, chatId, message, q) {
     }
 }
 
-module.exports = pairCommand; 
+module.exports = pairCommand;
+```

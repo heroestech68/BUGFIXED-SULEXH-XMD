@@ -23,7 +23,7 @@ async function pairCommand(sock, chatId, message, q) {
             return await sock.sendMessage(chatId, {
                 text: "Invalid number❌️ Please use the correct format!",
                 contextInfo: {
-                        newsletterJ: '0029VbAD3222f3EIZyXe6w16@broadcast',
+                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
@@ -50,7 +50,7 @@ async function pairCommand(sock, chatId, message, q) {
             await sock.sendMessage(chatId, {
                 text: "Wait a moment for the code",
                 contextInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
+                        newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                         newsletterName: 'BUGFIXED-SULEXH-XMD',
                         serverMessageId: -1
                     }
@@ -70,7 +70,7 @@ async function pairCommand(sock, chatId, message, q) {
                     await sock.sendMessage(chatId, {
                         text: `Your pairing code: ${code}`,
                         contextInfo: {
-                                newsletterJid: '120363161513685998@newsletter',
+                                newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                                 newsletterName: 'BUGFIXED-SULEXH-XMD',
                                 serverMessageId: -1
                             }
@@ -88,7 +88,7 @@ async function pairCommand(sock, chatId, message, q) {
                 await sock.sendMessage(chatId, {
                     text: errorMessage,
                     contextInfo: {
-                            newsletterJid: '120363161513685998@newsletter',
+                            newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                             newsletterName: 'BUGFIXED-SULEXH-XMD',
                             serverMessageId: -1
                         }
@@ -101,7 +101,7 @@ async function pairCommand(sock, chatId, message, q) {
         await sock.sendMessage(chatId, {
             text: "An error occurred. Please try again later.",
             contextInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
+                    newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
                     newsletterName: 'BUGFIXED-SULEXH-XMD',
                     serverMessageId: -1
                 }

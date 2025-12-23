@@ -13,13 +13,26 @@ const readline = require('readline')
 const NodeCache = require('node-cache')
 const pino = require('pino')
 const PhoneNumber = require('awesome-phonenumber')
-
-// Ensure tmp directory exists
 const path = require('path')
+
+// Ensure tmp directory exists and clear safely
 const tmpDir = path.join(__dirname, 'tmp')
 if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true })
     console.log(`[Init] Created missing tmp directory at ${tmpDir}`)
+}
+try {
+    if (fs.existsSync(tmpDir)) {
+        const files = fs.readdirSync(tmpDir)
+        for (const file of files) {
+            fs.unlinkSync(path.join(tmpDir, file))
+        }
+        console.log(`[Auto Clear] Cleared ${files.length} files in tmp`)
+    } else {
+        console.log(`[Auto Clear] Skipped clearing | Directory does not exist: ${tmpDir}`)
+    }
+} catch (err) {
+    console.error(`[Auto Clear] Error clearing tmp:`, err)
 }
 
 const {

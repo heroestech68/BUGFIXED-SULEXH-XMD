@@ -1,6 +1,7 @@
 /**
  * BUGFIXED SULEXH XMD
  * KnightBot-style core + per-chat long-lasting presence
+ * ✅ Pairing code enabled by default
  */
 
 require('./settings')
@@ -40,9 +41,6 @@ setInterval(() => {
 global.botname = 'BUGFIXED SULEXH XMD'
 global.themeemoji = '•'
 
-/* ================= PAIRING ================= */
-const pairingCode = !!settings.ownerNumber || process.argv.includes('--pairing-code')
-
 /* ================= CLI SAFE ================= */
 const rl = process.stdin.isTTY
     ? readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -50,8 +48,7 @@ const rl = process.stdin.isTTY
 
 /* ================= PRESENCE STATE ================= */
 const activePresenceChats = new Map()
-// how long presence stays active per chat (5 minutes)
-const PRESENCE_TTL = 5 * 60 * 1000
+const PRESENCE_TTL = 5 * 60 * 1000 // 5 minutes per chat
 
 /* ================= START BOT ================= */
 async function startXeonBotInc() {
@@ -63,7 +60,7 @@ async function startXeonBotInc() {
         const XeonBotInc = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
-            printQRInTerminal: !pairingCode,
+            printQRInTerminal: false, // QR will not be printed, pairing code used
             browser: ['Ubuntu', 'Chrome', '20.0.04'],
             auth: {
                 creds: state.creds,
@@ -118,7 +115,6 @@ async function startXeonBotInc() {
 
         /* ================= PER-CHAT PRESENCE ================= */
         let presenceStarted = false
-
         const startPresenceEngine = () => {
             if (presenceStarted) return
             presenceStarted = true
@@ -147,9 +143,8 @@ async function startXeonBotInc() {
             }, 15000)
         }
 
-        /* ================= CONNECTION (KNIGHTBOT FLOW) ================= */
-        XeonBotInc.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-            if (qr) console.log(chalk.yellow('📱 QR Code generated'))
+        /* ================= CONNECTION (PAIRING CODE ENABLED) ================= */
+        XeonBotInc.ev.on('connection.update', async ({ connection, lastDisconnect, qr, pairings }) => {
             if (connection === 'connecting')
                 console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
 
@@ -165,6 +160,15 @@ async function startXeonBotInc() {
                 if (shouldReconnect) {
                     await delay(5000)
                     startXeonBotInc()
+                }
+            }
+
+            // Show pairing code automatically
+            if (pairings?.length) {
+                for (const pairing of pairings) {
+                    if (pairing?.code) {
+                        console.log(chalk.cyan(`📌 Pairing code: ${pairing.code}`))
+                    }
                 }
             }
         })

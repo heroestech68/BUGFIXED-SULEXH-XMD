@@ -1,7 +1,6 @@
 /**
- * BUGFIXED SULEXH XMD - Cloud Safe WhatsApp Bot
- * Rebuilt for Katabump / Panels
- * License: MIT
+ * BUGFIXED SULEXH XMD
+ * KnightBot-style core + per-chat long-lasting presence
  */
 
 require('./settings')
@@ -18,7 +17,6 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion,
     jidDecode,
-    jidNormalizedUser,
     makeCacheableSignalKeyStore,
     delay
 } = require('@whiskeysockets/baileys')
@@ -32,17 +30,10 @@ const settings = require('./settings')
 store.readFromFile()
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 
-/* ================= MEMORY SAFETY ================= */
-setInterval(() => {
-    if (global.gc) global.gc()
-}, 60000)
-
+/* ================= MEMORY (KNIGHTBOT STYLE) ================= */
 setInterval(() => {
     const used = process.memoryUsage().rss / 1024 / 1024
-    if (used > 450) {
-        console.log('⚠️ High RAM usage, restarting bot...')
-        process.exit(1)
-    }
+    if (used > 400) process.exit(1)
 }, 30000)
 
 /* ================= GLOBALS ================= */
@@ -57,8 +48,10 @@ const rl = process.stdin.isTTY
     ? readline.createInterface({ input: process.stdin, output: process.stdout })
     : null
 
-const question = q =>
-    rl ? new Promise(r => rl.question(q, r)) : Promise.resolve(settings.ownerNumber)
+/* ================= PRESENCE STATE ================= */
+const activePresenceChats = new Map()
+// how long presence stays active per chat (5 minutes)
+const PRESENCE_TTL = 5 * 60 * 1000
 
 /* ================= START BOT ================= */
 async function startXeonBotInc() {
@@ -80,13 +73,10 @@ async function startXeonBotInc() {
                 )
             },
             markOnlineOnConnect: true,
-
-            // 🔥 CLOUD SAFE OPTIONS (IMPORTANT)
+            syncFullHistory: false,
             defaultQueryTimeoutMs: 60000,
             connectTimeoutMs: 60000,
             keepAliveIntervalMs: 10000,
-            syncFullHistory: false,
-
             msgRetryCounterCache
         })
 
@@ -99,20 +89,15 @@ async function startXeonBotInc() {
                 const m = messages[0]
                 if (!m?.message) return
 
-                if (m.key.remoteJid === 'status@broadcast') {
-                    await handleStatus(XeonBotInc, { messages })
-                    return
-                }
+                const jid = m.key.remoteJid
+                if (jid) activePresenceChats.set(jid, Date.now())
 
-                // Prevent memory freeze
-                if (XeonBotInc.msgRetryCounterCache) {
-                    XeonBotInc.msgRetryCounterCache.clear()
-                }
+                if (jid === 'status@broadcast')
+                    return handleStatus(XeonBotInc, { messages })
 
+                msgRetryCounterCache.clear()
                 await handleMessages(XeonBotInc, { messages }, true)
-            } catch (err) {
-                console.error('Message error:', err)
-            }
+            } catch {}
         })
 
         /* ================= HELPERS ================= */
@@ -125,52 +110,59 @@ async function startXeonBotInc() {
             return jid
         }
 
-        XeonBotInc.getName = jid => {
-            jid = XeonBotInc.decodeJid(jid)
-            return (
-                store.contacts[jid]?.name ||
-                PhoneNumber('+' + jid.replace('@s.whatsapp.net', '')).getNumber('international')
-            )
-        }
+        XeonBotInc.getName = jid =>
+            store.contacts[jid]?.name ||
+            PhoneNumber('+' + jid.replace('@s.whatsapp.net', '')).getNumber('international')
 
         XeonBotInc.public = true
 
-        /* ================= PRESENCE ENGINE ================= */
-        function pickTargetChat() {
-            const chats = Object.keys(store.chats || {})
-            return chats.find(j => j.endsWith('@s.whatsapp.net') || j.endsWith('@g.us')) || null
+        /* ================= PER-CHAT PRESENCE ================= */
+        let presenceStarted = false
+
+        const startPresenceEngine = () => {
+            if (presenceStarted) return
+            presenceStarted = true
+
+            setInterval(async () => {
+                try {
+                    const now = Date.now()
+                    const ps = presenceSettings.getPresenceSettings()
+
+                    for (const [jid, lastActive] of activePresenceChats.entries()) {
+                        if (now - lastActive > PRESENCE_TTL) {
+                            activePresenceChats.delete(jid)
+                            continue
+                        }
+
+                        if (ps.autorecording)
+                            await XeonBotInc.sendPresenceUpdate('recording', jid)
+                        else if (ps.autotyping)
+                            await XeonBotInc.sendPresenceUpdate('composing', jid)
+                        else if (ps.alwaysonline)
+                            await XeonBotInc.sendPresenceUpdate('available', jid)
+                    }
+                } catch {
+                    // silent like KnightBot
+                }
+            }, 15000)
         }
 
-        setInterval(async () => {
-            try {
-                const ps = presenceSettings.getPresenceSettings()
-                const target = pickTargetChat()
-                if (!target) return
-
-                if (ps.autorecording)
-                    return XeonBotInc.sendPresenceUpdate('recording', target)
-                if (ps.autotyping)
-                    return XeonBotInc.sendPresenceUpdate('composing', target)
-                if (ps.alwaysonline)
-                    return XeonBotInc.sendPresenceUpdate('available', target)
-
-                await XeonBotInc.sendPresenceUpdate('available', target)
-            } catch {}
-        }, 12000)
-
-        /* ================= CONNECTION ================= */
-        XeonBotInc.ev.on('connection.update', async update => {
-            const { connection, lastDisconnect } = update
+        /* ================= CONNECTION (KNIGHTBOT FLOW) ================= */
+        XeonBotInc.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+            if (qr) console.log(chalk.yellow('📱 QR Code generated'))
+            if (connection === 'connecting')
+                console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
 
             if (connection === 'open') {
-                console.log(chalk.green('🤖 BUGFIXED BOT CONNECTED SUCCESSFULLY'))
+                console.log(chalk.green('🤖 BUGFIXED CONNECTED SUCCESSFULLY'))
+                startPresenceEngine()
             }
 
             if (connection === 'close') {
                 const shouldReconnect =
                     lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+
                 if (shouldReconnect) {
-                    console.log('🔄 Reconnecting...')
                     await delay(5000)
                     startXeonBotInc()
                 }
@@ -184,9 +176,7 @@ async function startXeonBotInc() {
         XeonBotInc.ev.on('status.update', s => handleStatus(XeonBotInc, s))
         XeonBotInc.ev.on('messages.reaction', s => handleStatus(XeonBotInc, s))
 
-        return XeonBotInc
-    } catch (e) {
-        console.error('Startup error:', e)
+    } catch {
         await delay(5000)
         startXeonBotInc()
     }
@@ -194,6 +184,5 @@ async function startXeonBotInc() {
 
 /* ================= START ================= */
 startXeonBotInc()
-
-process.on('uncaughtException', console.error)
-process.on('unhandledRejection', console.error)
+process.on('uncaughtException', () => {})
+process.on('unhandledRejection', () => {})

@@ -1,39 +1,16 @@
 /**
- * Bugfixed Xd - A WhatsApp Bot
- * Copyright (c) 2024 Professor
+ * BUGFIXED SULEXH XMD - Cloud Safe WhatsApp Bot
+ * Rebuilt for Katabump / Panels
  * License: MIT
  */
 
 require('./settings')
-const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
-const axios = require('axios')
 const readline = require('readline')
 const NodeCache = require('node-cache')
 const pino = require('pino')
 const PhoneNumber = require('awesome-phonenumber')
-const path = require('path')
-
-// Ensure tmp directory exists and clear safely
-const tmpDir = path.join(__dirname, 'tmp')
-if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true })
-    console.log(`[Init] Created missing tmp directory at ${tmpDir}`)
-}
-try {
-    if (fs.existsSync(tmpDir)) {
-        const files = fs.readdirSync(tmpDir)
-        for (const file of files) {
-            fs.unlinkSync(path.join(tmpDir, file))
-        }
-        console.log(`[Auto Clear] Cleared ${files.length} files in tmp`)
-    } else {
-        console.log(`[Auto Clear] Skipped clearing | Directory does not exist: ${tmpDir}`)
-    }
-} catch (err) {
-    console.error(`[Auto Clear] Error clearing tmp:`, err)
-}
 
 const {
     default: makeWASocket,
@@ -51,32 +28,39 @@ const store = require('./lib/lightweight_store')
 const presenceSettings = require('./presence_settings')
 const settings = require('./settings')
 
-// Store
+/* ================= STORE ================= */
 store.readFromFile()
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 
-// RAM safety
+/* ================= MEMORY SAFETY ================= */
+setInterval(() => {
+    if (global.gc) global.gc()
+}, 60000)
+
 setInterval(() => {
     const used = process.memoryUsage().rss / 1024 / 1024
-    if (used > 400) process.exit(1)
+    if (used > 450) {
+        console.log('⚠️ High RAM usage, restarting bot...')
+        process.exit(1)
+    }
 }, 30000)
 
-// Globals
+/* ================= GLOBALS ================= */
 global.botname = 'BUGFIXED SULEXH XMD'
 global.themeemoji = '•'
 
-// Pairing
-const phoneNumber = settings.ownerNumber
-const pairingCode = !!phoneNumber || process.argv.includes('--pairing-code')
+/* ================= PAIRING ================= */
+const pairingCode = !!settings.ownerNumber || process.argv.includes('--pairing-code')
 
-// CLI
+/* ================= CLI SAFE ================= */
 const rl = process.stdin.isTTY
     ? readline.createInterface({ input: process.stdin, output: process.stdout })
     : null
 
 const question = q =>
-    rl ? new Promise(r => rl.question(q, r)) : Promise.resolve(phoneNumber)
+    rl ? new Promise(r => rl.question(q, r)) : Promise.resolve(settings.ownerNumber)
 
+/* ================= START BOT ================= */
 async function startXeonBotInc() {
     try {
         const { version } = await fetchLatestBaileysVersion()
@@ -96,26 +80,42 @@ async function startXeonBotInc() {
                 )
             },
             markOnlineOnConnect: true,
+
+            // 🔥 CLOUD SAFE OPTIONS (IMPORTANT)
+            defaultQueryTimeoutMs: 60000,
+            connectTimeoutMs: 60000,
+            keepAliveIntervalMs: 10000,
+            syncFullHistory: false,
+
             msgRetryCounterCache
         })
 
         XeonBotInc.ev.on('creds.update', saveCreds)
         store.bind(XeonBotInc.ev)
 
-        // ===============================
-        // MESSAGE HANDLER
-        // ===============================
+        /* ================= MESSAGE HANDLER ================= */
         XeonBotInc.ev.on('messages.upsert', async ({ messages }) => {
-            const m = messages[0]
-            if (!m?.message) return
-            if (m.key.remoteJid === 'status@broadcast') return handleStatus(XeonBotInc, m)
             try {
+                const m = messages[0]
+                if (!m?.message) return
+
+                if (m.key.remoteJid === 'status@broadcast') {
+                    await handleStatus(XeonBotInc, { messages })
+                    return
+                }
+
+                // Prevent memory freeze
+                if (XeonBotInc.msgRetryCounterCache) {
+                    XeonBotInc.msgRetryCounterCache.clear()
+                }
+
                 await handleMessages(XeonBotInc, { messages }, true)
-            } catch (e) {
-                console.error(e)
+            } catch (err) {
+                console.error('Message error:', err)
             }
         })
 
+        /* ================= HELPERS ================= */
         XeonBotInc.decodeJid = jid => {
             if (!jid) return jid
             if (/:\d+@/.test(jid)) {
@@ -135,10 +135,7 @@ async function startXeonBotInc() {
 
         XeonBotInc.public = true
 
-        // ===============================
-        // ✅ COMMAND-CONTROLLED PRESENCE ENGINE
-        // ===============================
-
+        /* ================= PRESENCE ENGINE ================= */
         function pickTargetChat() {
             const chats = Object.keys(store.chats || {})
             return chats.find(j => j.endsWith('@s.whatsapp.net') || j.endsWith('@g.us')) || null
@@ -150,41 +147,30 @@ async function startXeonBotInc() {
                 const target = pickTargetChat()
                 if (!target) return
 
-                if (ps.autorecording) {
-                    await XeonBotInc.sendPresenceUpdate('recording', target)
-                    return
-                }
+                if (ps.autorecording)
+                    return XeonBotInc.sendPresenceUpdate('recording', target)
+                if (ps.autotyping)
+                    return XeonBotInc.sendPresenceUpdate('composing', target)
+                if (ps.alwaysonline)
+                    return XeonBotInc.sendPresenceUpdate('available', target)
 
-                if (ps.autotyping) {
-                    await XeonBotInc.sendPresenceUpdate('composing', target)
-                    return
-                }
-
-                if (ps.alwaysonline) {
-                    await XeonBotInc.sendPresenceUpdate('available', target)
-                    return
-                }
-
-                // all off → reset
                 await XeonBotInc.sendPresenceUpdate('available', target)
-
             } catch {}
-        }, 12000) // SAFE INTERVAL
+        }, 12000)
 
-        // ===============================
-        // CONNECTION HANDLER
-        // ===============================
+        /* ================= CONNECTION ================= */
         XeonBotInc.ev.on('connection.update', async update => {
             const { connection, lastDisconnect } = update
 
             if (connection === 'open') {
-                console.log(chalk.green('🤖 Bot Connected Successfully'))
+                console.log(chalk.green('🤖 BUGFIXED BOT CONNECTED SUCCESSFULLY'))
             }
 
             if (connection === 'close') {
                 const shouldReconnect =
                     lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
                 if (shouldReconnect) {
+                    console.log('🔄 Reconnecting...')
                     await delay(5000)
                     startXeonBotInc()
                 }
@@ -200,12 +186,13 @@ async function startXeonBotInc() {
 
         return XeonBotInc
     } catch (e) {
-        console.error(e)
+        console.error('Startup error:', e)
         await delay(5000)
         startXeonBotInc()
     }
 }
 
+/* ================= START ================= */
 startXeonBotInc()
 
 process.on('uncaughtException', console.error)

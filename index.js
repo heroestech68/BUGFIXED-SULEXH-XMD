@@ -229,7 +229,7 @@ async function startXeonBotInc() {
         }
         setInterval(async () => {
             try {
-                const ps = presenceSettings.getPresenceSettings()
+                const ps = presenceSettings;
                 const chatId = pickActiveChat()
                 if (!chatId) return
                 const now = Date.now()

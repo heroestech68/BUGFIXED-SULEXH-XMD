@@ -1,7 +1,8 @@
 /**
  * BUGFIXED SULEXH XMD
  * KnightBot-style core + per-chat long-lasting presence
- * ✅ Pairing code enabled by default
+ * ✅ Multi-device safe
+ * ✅ Owner-number pairing code + optional clickable link
  */
 
 require('./settings')
@@ -60,7 +61,7 @@ async function startXeonBotInc() {
         const XeonBotInc = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
-            printQRInTerminal: false, // QR will not be printed, pairing code used
+            printQRInTerminal: true, // fallback QR for any device
             browser: ['Ubuntu', 'Chrome', '20.0.04'],
             auth: {
                 creds: state.creds,
@@ -143,10 +144,10 @@ async function startXeonBotInc() {
             }, 15000)
         }
 
-        /* ================= CONNECTION (PAIRING CODE ENABLED) ================= */
+        /* ================= CONNECTION (OWNER PAIRING) ================= */
         XeonBotInc.ev.on('connection.update', async ({ connection, lastDisconnect, qr, pairings }) => {
-            if (connection === 'connecting')
-                console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
+            if (qr) console.log(chalk.yellow('📱 QR Code generated (scan if needed)'))
+            if (connection === 'connecting') console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
 
             if (connection === 'open') {
                 console.log(chalk.green('🤖 BUGFIXED CONNECTED SUCCESSFULLY'))
@@ -163,11 +164,15 @@ async function startXeonBotInc() {
                 }
             }
 
-            // Show pairing code automatically
+            // Owner-specific pairing code + clickable link
             if (pairings?.length) {
-                for (const pairing of pairings) {
-                    if (pairing?.code) {
-                        console.log(chalk.cyan(`📌 Pairing code: ${pairing.code}`))
+                for (const p of pairings) {
+                    if (p.code && p.deviceDisplayName === settings.ownerNumber) {
+                        console.log(chalk.cyan(`📌 Pairing code for ${settings.ownerNumber}: ${p.code}`))
+
+                        // Optional clickable link
+                        const link = `https://wa.me/${settings.ownerNumber}?code=${p.code}`
+                        console.log(chalk.green(`🔗 Optional clickable pairing link: ${link}`))
                     }
                 }
             }

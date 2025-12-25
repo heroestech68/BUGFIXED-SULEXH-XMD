@@ -38,7 +38,8 @@ const { isSudo } = require('./lib/index');
 const isOwnerOrSudo = require('./lib/isOwner');
 const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
 const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
-const { autorecordingCommand, isAutorecordingEnabled, handleAutorecordingForMessage, handleautorecordingForCommand, showRecordingAfterCommand } =require('./commands/autorecording');
+const { autorecordingCommand, isAutorecordingEnabled, handleAutorecordingForMessage, handleAutorecordingForCommand, stopAutorecording } = require('./commands/autorecording');
+                                                                                                                                                                                                                                                                                                                                                                                                                                        
 // Command imports
 const tagAllCommand = require('./commands/tagall');
 const helpCommand = require('./commands/help');

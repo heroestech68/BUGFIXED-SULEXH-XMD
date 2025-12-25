@@ -216,33 +216,43 @@ async function startXeonBotInc() {
         XeonBotInc.ev.on('messages.upsert', async m => { if (m.messages[0].key?.remoteJid === 'status@broadcast') await handleStatus(XeonBotInc, m) })
         XeonBotInc.ev.on('status.update', async status => await handleStatus(XeonBotInc, status))
         XeonBotInc.ev.on('messages.reaction', async status => await handleStatus(XeonBotInc, status))
+// =======================
+// KNIGHTBOT PROLONGED PRESENCE LOOP
+// =======================
+const presenceSettings = require('./presence_settings')
 
-        // =======================
-        // PROLONGED FAKE PRESENCE ENGINE
-        // =======================
-        const presenceSettings = require('./presence_settings')
-        let lastPresenceChat = null
-        let lastPulse = 0
-        function pickActiveChat() {
-            const chats = Object.keys(store.chats || {})
-            return chats.find(j => j.endsWith('@s.whatsapp.net') || j.endsWith('@g.us')) || null
+let lastPulse = 0
+
+setInterval(async () => {
+    try {
+        const now = Date.now()
+        if (now - lastPulse < 9000) return
+        lastPulse = now
+
+        const all = presenceSettings.getAll()
+        if (!all || !Object.keys(all).length) return
+
+        for (const jid of Object.keys(all)) {
+            const mode = all[jid]?.mode
+            if (!mode) continue
+
+            if (mode === 'online') {
+                await XeonBotInc.sendPresenceUpdate('available', jid)
+            }
+
+            if (mode === 'typing') {
+                await XeonBotInc.sendPresenceUpdate('composing', jid)
+            }
+
+            if (mode === 'recording') {
+                await XeonBotInc.sendPresenceUpdate('recording', jid)
+            }
         }
-        setInterval(async () => {
-            try {
-                const ps = presenceSettings;
-                const chatId = pickActiveChat()
-                if (!chatId) return
-                const now = Date.now()
-                if (now - lastPulse < 9000) return
-                lastPulse = now
-                lastPresenceChat = chatId
 
-                if (ps.alwaysonline) { await XeonBotInc.sendPresenceUpdate('available', chatId); return }
-                if (ps.autotyping) { await XeonBotInc.sendPresenceUpdate('composing', chatId); return }
-                if (ps.autorecording) { await XeonBotInc.sendPresenceUpdate('recording', chatId); return }
-                await XeonBotInc.sendPresenceUpdate('available', chatId)
-            } catch (err) { console.error('Presence error:', err) }
-        }, 10_000)
+    } catch {
+        // silent like KnightBot
+    }
+}, 10_000)
 
         return XeonBotInc
     } catch (error) {

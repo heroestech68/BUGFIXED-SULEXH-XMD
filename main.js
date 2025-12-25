@@ -1,4 +1,4 @@
-// 🧹 Fix for ENOSPC / temp overflow in hosted panels
+mode� Fix for ENOSPC / temp overflow in hosted panels
 const fs = require('fs');
 const path = require('path');
 
@@ -36,7 +36,8 @@ const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 const { isSudo } = require('./lib/index');
 const isOwnerOrSudo = require('./lib/isOwner');
-const {autoreadCommand, isAutoreadEnabled, handleAutoread } =require('./commands/autoread');
+const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
+const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
 
 // Command imports
 const tagAllCommand = require('./commands/tagall');
@@ -141,7 +142,6 @@ const { anticallCommand, readState: readAnticallState } = require('./commands/an
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
-const presenceSettings = require('../presence_settings');
 
 // Global settings
 global.packname = settings.packname;
@@ -294,34 +294,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
             } catch (e) { }
         }
-    //presence settings command
-      if (isOwner) {
 
-    if (command === 'autotyping') {
-        if (args[0] === 'on') {
-            presenceSettings.set('typing')
-            reply('✍️ Autotyping enabled')
-        } else {
-            presenceSettings.set('online')
-            reply('🟢 Autotyping disabled')
-        }
-    }
-
-    if (command === 'autorecording') {
-        if (args[0] === 'on') {
-            presenceSettings.set('recording')
-            reply('🎙️ Autorecording enabled')
-        } else {
-            presenceSettings.set('online')
-            reply('🟢 Autorecording disabled')
-        }
-    }
-
-    if (command === 'alwaysonline') {
-        presenceSettings.set('online')
-        reply('🟢 Always online enabled')
-    }
-      }
         // Then check for command prefix
         if (!userMessage.startsWith('.')) {
             // Show typing indicator if autotyping is enabled

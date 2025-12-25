@@ -218,7 +218,8 @@ const helpMessage = `
 `;
 
 try {
-    const videoURL = "https://files.catbox.moe/cgssk0.gif";
+    const videoURL = "h
+      "https://files.catbox.moe/8na7se.mp4";
     const audioURL = "https://files.catbox.moe/larc7j.mp3";
 
     // ✅ SEND VIDEO MENU

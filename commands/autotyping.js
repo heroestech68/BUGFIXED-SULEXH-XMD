@@ -1,16 +1,16 @@
 /**
  * BUGFIXED-SULEXH-XMD - A WhatsApp Bot
- * Autotyping Command - Shows fake typing status
+ * Autotyping Command - INFINITE realistic typing
  */
 
 const fs = require('fs');
 const path = require('path');
 const isOwnerOrSudo = require('../lib/isOwner');
 
-// Path to store the configuration
+// ================= CONFIG =================
+
 const configPath = path.join(__dirname, '..', 'data', 'autotyping.json');
 
-// Initialize configuration file if it doesn't exist
 function initConfig() {
     if (!fs.existsSync(configPath)) {
         fs.writeFileSync(configPath, JSON.stringify({ enabled: false }, null, 2));
@@ -18,7 +18,8 @@ function initConfig() {
     return JSON.parse(fs.readFileSync(configPath));
 }
 
-// Universal channel info
+// ================= CHANNEL INFO =================
+
 const channelInfo = {
     contextInfo: {
         newsletterJid: '0029VbAD3222f3EIZyXe6w16@broadcast',
@@ -27,7 +28,16 @@ const channelInfo = {
     }
 };
 
-// Toggle autotyping feature
+// ================= INTERNAL STATE =================
+
+// Track active typing sessions per chat
+const typingSessions = new Map();
+
+// Delay helper
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// ================= COMMAND =================
+
 async function autotypingCommand(sock, chatId, message) {
     try {
         const senderId = message.key.participant || message.key.remoteJid;
@@ -45,19 +55,16 @@ async function autotypingCommand(sock, chatId, message) {
             return;
         }
 
-        // Get command arguments
-        const args =
-            message.message?.conversation?.trim().split(' ').slice(1) ||
-            message.message?.extendedTextMessage?.text?.trim().split(' ').slice(1) ||
-            [];
+        const text =
+            message.message?.conversation ||
+            message.message?.extendedTextMessage?.text ||
+            '';
 
-        // Initialize or read config
+        const args = text.trim().split(/\s+/).slice(1);
         const config = initConfig();
 
-        // Toggle logic
         if (args.length > 0) {
             const action = args[0].toLowerCase();
-
             if (action === 'on' || action === 'enable') {
                 config.enabled = true;
             } else if (action === 'off' || action === 'disable') {
@@ -74,14 +81,11 @@ async function autotypingCommand(sock, chatId, message) {
                 return;
             }
         } else {
-            // Toggle current state
             config.enabled = !config.enabled;
         }
 
-        // Save updated configuration
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-        // Success message
         await sock.sendMessage(
             chatId,
             {
@@ -91,8 +95,7 @@ async function autotypingCommand(sock, chatId, message) {
             { quoted: message }
         );
     } catch (error) {
-        console.error('Error in autotyping command:', error);
-
+        console.error('❌ Error in autotyping command:', error);
         await sock.sendMessage(
             chatId,
             {
@@ -104,94 +107,91 @@ async function autotypingCommand(sock, chatId, message) {
     }
 }
 
-// Check if enabled
+// ================= STATUS =================
+
 function isAutotypingEnabled() {
     try {
-        const config = initConfig();
-        return config.enabled;
-    } catch (error) {
-        console.error('Error checking autotyping status:', error);
+        return initConfig().enabled === true;
+    } catch {
         return false;
     }
 }
 
-// Handle autotyping for normal messages
+// ================= INFINITE AUTOTYPING =================
+
 async function handleAutotypingForMessage(sock, chatId, userMessage) {
-    if (isAutotypingEnabled()) {
-        try {
-            await sock.presenceSubscribe(chatId);
+    if (!isAutotypingEnabled()) return false;
+    if (!userMessage) return false;
 
-            await sock.sendPresenceUpdate('available', chatId);
-            await new Promise(resolve => setTimeout(resolve, 500));
+    // Prevent multiple typing loops in same chat
+    if (typingSessions.has(chatId)) return true;
 
+    let active = true;
+    typingSessions.set(chatId, () => { active = false; });
+
+    try {
+        await sock.presenceSubscribe(chatId);
+
+        // Infinite typing loop
+        while (active) {
             await sock.sendPresenceUpdate('composing', chatId);
-
-            const typingDelay = Math.max(3000, Math.min(8000, userMessage.length * 150));
-            await new Promise(resolve => setTimeout(resolve, typingDelay));
-
-            await sock.sendPresenceUpdate('composing', chatId);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            await sock.sendPresenceUpdate('paused', chatId);
-
-            return true;
-        } catch (error) {
-            console.error('❌ Error sending typing indicator:', error);
-            return false;
+            await delay(4500); // refresh before WhatsApp timeout
         }
+
+        await sock.sendPresenceUpdate('paused', chatId);
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error sending infinite typing indicator:', error);
+        return false;
+    } finally {
+        typingSessions.delete(chatId);
     }
-    return false;
 }
 
-// Handle autotyping before command (optional)
+// ================= STOP TYPING =================
+
+function stopAutotyping(chatId) {
+    if (typingSessions.has(chatId)) {
+        typingSessions.get(chatId)();
+        typingSessions.delete(chatId);
+    }
+}
+
+// ================= OPTIONAL COMMAND TYPING =================
+
 async function handleAutotypingForCommand(sock, chatId) {
-    if (isAutotypingEnabled()) {
-        try {
-            await sock.presenceSubscribe(chatId);
-            await sock.sendPresenceUpdate('available', chatId);
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            await sock.sendPresenceUpdate('composing', chatId);
-            await new Promise(resolve => setTimeout(resolve, 3000));
-
-            await sock.sendPresenceUpdate('composing', chatId);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            await sock.sendPresenceUpdate('paused', chatId);
-
-            return true;
-        } catch (error) {
-            console.error('❌ Error sending command typing indicator:', error);
-            return false;
-        }
+    if (!isAutotypingEnabled()) return false;
+    try {
+        await sock.presenceSubscribe(chatId);
+        await sock.sendPresenceUpdate('composing', chatId);
+        await delay(3000);
+        await sock.sendPresenceUpdate('paused', chatId);
+        return true;
+    } catch {
+        return false;
     }
-    return false;
 }
 
-// Typing AFTER command
 async function showTypingAfterCommand(sock, chatId) {
-    if (isAutotypingEnabled()) {
-        try {
-            await sock.presenceSubscribe(chatId);
-
-            await sock.sendPresenceUpdate('composing', chatId);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            await sock.sendPresenceUpdate('paused', chatId);
-
-            return true;
-        } catch (error) {
-            console.error('❌ Error sending post-command typing indicator:', error);
-            return false;
-        }
+    if (!isAutotypingEnabled()) return false;
+    try {
+        await sock.sendPresenceUpdate('composing', chatId);
+        await delay(1000);
+        await sock.sendPresenceUpdate('paused', chatId);
+        return true;
+    } catch {
+        return false;
     }
-    return false;
 }
+
+// ================= EXPORTS =================
 
 module.exports = {
     autotypingCommand,
     isAutotypingEnabled,
     handleAutotypingForMessage,
     handleAutotypingForCommand,
-    showTypingAfterCommand
+    showTypingAfterCommand,
+    stopAutotyping
 };

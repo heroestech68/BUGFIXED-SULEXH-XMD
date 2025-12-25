@@ -1,50 +1,35 @@
+// presence_settings.js
 // =======================
-// PROLONGED FAKE PRESENCE ENGINE
+// BUGFIXED XMD PRESENCE STATE ENGINE
 // =======================
 
-let lastPresenceChat = null;
-let lastPulse = 0;
-
-function pickActiveChat() {
-    const chats = Object.keys(store.chats || {});
-    return chats.find(j =>
-        j.endsWith('@s.whatsapp.net') || j.endsWith('@g.us')
-    ) || null;
+/*
+Structure:
+{
+  "jid@s.whatsapp.net": {
+      mode: "online" | "typing" | "recording" | "off"
+  }
 }
+*/
 
-setInterval(async () => {
-    try {
-        const ps = presenceSettings.getPresenceSettings();
-        const chatId = pickActiveChat();
-        if (!chatId) return;
+const presenceMap = {}
 
-        const now = Date.now();
+module.exports = {
+    setPresence(jid, mode) {
+        if (!jid) return
+        presenceMap[jid] = { mode }
+    },
 
-        // Avoid hammering same presence too fast
-        if (now - lastPulse < 9000) return;
-        lastPulse = now;
-        lastPresenceChat = chatId;
+    clearPresence(jid) {
+        if (!jid) return
+        delete presenceMap[jid]
+    },
 
-        // 🔵 ALWAYS ONLINE
-        if (ps.alwaysonline) {
-            await XeonBotInc.sendPresenceUpdate('available', chatId);
-            return;
-        }
+    getPresence(jid) {
+        return presenceMap[jid]?.mode || 'off'
+    },
 
-        // ✍️ PROLONGED TYPING
-        if (ps.autotyping) {
-            await XeonBotInc.sendPresenceUpdate('composing', chatId);
-            return;
-        }
-
-        // 🎙️ PROLONGED RECORDING
-        if (ps.autorecording) {
-            await XeonBotInc.sendPresenceUpdate('recording', chatId);
-            return;
-        }
-
-        // If all OFF → reset
-        await XeonBotInc.sendPresenceUpdate('available', chatId);
-
-    } catch {}
-}, 10_000); // 👈 perfect keep-alive window
+    getAll() {
+        return presenceMap
+    }
+}

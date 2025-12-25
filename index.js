@@ -1,5 +1,5 @@
 /**
- * Knight Bot - A WhatsApp Bot
+ * Bugfixed Xmd - A WhatsApp Bot
  * Copyright (c) 2024 Professor
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -52,10 +52,10 @@ setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 setInterval(() => { if (global.gc) global.gc() }, 60_000)
 setInterval(() => { if ((process.memoryUsage().rss / 1024 / 1024) > 400) process.exit(1) }, 30_000)
 
-let phoneNumber = "911234567890"
+let phoneNumber = "254768161116"
 let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
 
-global.botname = "KNIGHT BOT"
+global.botname = "BUGFIXED-SULEXH-XMD"
 global.themeemoji = "•"
 const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code")
 const useMobile = process.argv.includes("--mobile")

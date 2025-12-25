@@ -10,7 +10,7 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
 
 <!-- AUTOPLAY GIF (Always Playing, GitHub Supported) -->
 <div align="center">
-  <img src="assets/ezgif-382349d3b7b074f9.gif" width="600" alt="Bugfixed Sulexh XMD Demo"/>
+  <img src="assets/ezgif-8266ce9d87ea5094.gif" width="600" alt="Bugfixed Sulexh XMD Demo"/>
 </div>
 
 <div align="center">

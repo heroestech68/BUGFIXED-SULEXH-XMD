@@ -973,6 +973,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.video') || userMessage.startsWith('.ytmp4'):
                 await videoCommand(sock, chatId, message);
                 break;
+            case userMessage.startsWith('.quran'):
+    await quranCommand(sock, chatId, message);
+    commandExecuted = true;
+    break;
             case userMessage.startsWith('.tiktok') || userMessage.startsWith('.tt'):
                 await tiktokCommand(sock, chatId, message);
                 break;

@@ -297,13 +297,18 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // Then check for command prefix
-        if (!userMessage.startsWith('.')) {
-            // Show typing indicator if autotyping is enabled
-            await handleAutotypingForMessage(sock, chatId, userMessage);
-            // Show recording indicator if autorecording is enabled           
-            await handleAutorecordingForMessage(sock, chatId, usermessage);
-                                            
-            if (isGroup) {
+if (!userMessage.startsWith('.')) {
+    // Show typing indicator if autotyping is enabled
+    await handleAutotypingForMessage(sock, chatId, userMessage);
+
+    // Use the message-specific autorecording handler (do NOT call the command handler)
+    // This prevents running the ".autorecording" command logic on every message
+    await handleAutorecordingForMessage(sock, chatId, message);
+
+    // NOTE: Do NOT set commandExecuted here. This branch is for non-commands.
+    if (isGroup) {
+        
+        
                 // Always run moderation features (antitag) regardless of mode
                 await handleTagDetection(sock, chatId, message, senderId);
                 await handleMentionDetection(sock, chatId, message);

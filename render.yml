@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: Bugfixed Sulexh Xmd
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: TZ
+        value: Africa/Nairobi

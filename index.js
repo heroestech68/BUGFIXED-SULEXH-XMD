@@ -1,5 +1,5 @@
 /**
- * Knight Bot - A WhatsApp Bot
+ * Bugfixed-Sulexh-Xmd - A WhatsApp Bot
  * Copyright (c) 2024 Professor
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -400,3 +400,15 @@ fs.watchFile(file, () => {
     delete require.cache[file]
     require(file)
 })
+// ================= RENDER KEEP-ALIVE SERVER =================
+const http = require('http');
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('KnightBot is running on Render 🚀');
+}).listen(PORT, () => {
+    console.log(`🌐 Render HTTP server running on port ${PORT}`);
+});
+// ===========================================================

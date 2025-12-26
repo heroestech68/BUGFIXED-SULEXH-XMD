@@ -143,6 +143,7 @@ const { anticallCommand, readState: readAnticallState } = require('./commands/an
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
+const quranCommand = require('./commands/quran');
 global.showTypingAfterCommand = async () => {};
 
 global.showRecordingAfterCommand = async () => {};

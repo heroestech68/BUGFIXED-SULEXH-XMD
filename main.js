@@ -301,7 +301,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             // Show typing indicator if autotyping is enabled
             await handleAutotypingForMessage(sock, chatId, userMessage);
             // Show recording indicator if autorecording is enabled           
-            await handleAutorecordingForMessage(sock, chatId, userMessage);
+            await autorecordingCommand(sock, chatId, message);
+commandExecuted = true;
+await showRecordingAfterCommand(sock, chatId);
                                             
 
             if (isGroup) {
@@ -326,7 +328,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.autorecording', '.pmblocker'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         let isSenderAdmin = false;
@@ -516,6 +518,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
+          case userMessage.startsWith('.autorecording'):
+  // call the command handler from commands/autorecording.js
+  await autorecordingCommand(sock, chatId, message);
+  commandExecuted = true;
+  break;
             case userMessage === '.owner':
                 await ownerCommand(sock, chatId);
                 break;

@@ -2,33 +2,6 @@
 const fs = require('fs');
 const path = require('path');
 
-// Absolute path to JSON
-const autorecordingFile = path.join(__dirname, 'data', 'autorecording.json');
-
-// Ensure JSON exists
-try {
-    if (!fs.existsSync(autorecordingFile)) {
-        fs.writeFileSync(autorecordingFile, JSON.stringify({ enabled: true }, null, 2));
-    }
-} catch (e) {
-    console.error('Error initializing autorecording.json:', e);
-}
-
-// Import existing autorecording function
-const { handleAutorecording } = require('./command/autorecording');
-
-// Wrapper function that checks JSON before calling the original function
-async function handleAutorecordingForMessage(sock, chatId, message) {
-    try {
-        const data = JSON.parse(fs.readFileSync(autorecordingFile, 'utf-8'));
-        if (!data.enabled) return; // skip if disabled
-        await handleAutorecording(sock, chatId, message);
-    } catch (e) {
-        // fallback: still call original
-        await handleAutorecording(sock, chatId, message);
-    }
-  }
-
 // Redirect temp storage away from system /tmp
 const customTemp = path.join(process.cwd(), 'temp');
 if (!fs.existsSync(customTemp)) fs.mkdirSync(customTemp, { recursive: true });
@@ -327,29 +300,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
         if (!userMessage.startsWith('.')) {
             // Show typing indicator if autotyping is enabled
             await handleAutotypingForMessage(sock, chatId, userMessage);
-            // Show recording indicator if autorecording is enabled
-            if (userMessage.startsWith('.autorecording')) {
-    const parts = userMessage.split(' ');
-    let newStatus = true;
-
-    try {
-        if (parts[1] && parts[1].toLowerCase() === 'on') newStatus = true;
-        else if (parts[1] && parts[1].toLowerCase() === 'off') newStatus = false;
-        else {
-            const data = JSON.parse(fs.readFileSync(autorecordingFile, 'utf-8'));
-            newStatus = !data.enabled;
-        }
-
-        fs.writeFileSync(autorecordingFile, JSON.stringify({ enabled: newStatus }, null, 2));
-
-        await sock.sendMessage(chatId, `✅ Autorecording is now ${newStatus ? 'ON' : 'OFF'}`);
-    } catch (e) {
-        console.error('Failed to toggle autorecording:', e);
-        await sock.sendMessage(chatId, '❌ Failed to change autorecording status.');
-    }
-
-    return; // stop further processing
-                 }
+            // Show recording indicator if autorecording is enabled           
+            await handleAutorecordingForMessage(sock, chatId, userMessage);
                                             
 
             if (isGroup) {

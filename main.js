@@ -301,11 +301,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
             // Show typing indicator if autotyping is enabled
             await handleAutotypingForMessage(sock, chatId, userMessage);
             // Show recording indicator if autorecording is enabled           
-            await autorecordingCommand(sock, chatId, message);
-commandExecuted = true;
-await showRecordingAfterCommand(sock, chatId);
+            await handleAutorecordingForMessage(sock, chatId, usermessage);
                                             
-
             if (isGroup) {
                 // Always run moderation features (antitag) regardless of mode
                 await handleTagDetection(sock, chatId, message, senderId);

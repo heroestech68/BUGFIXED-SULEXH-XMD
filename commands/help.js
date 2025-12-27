@@ -35,7 +35,7 @@ const helpMessage = `
 ║ ➤ .ss <link>
 ║ ➤ .jid
 ║ ➤ .url
-║ ➤ .quran <surah> <ayah/start-end> - Read Quran (Arabic + English) ✅
+║ ➤ .quran menu
 ╚═══════════════════╝ 
 
 ╔═══════════════════╗

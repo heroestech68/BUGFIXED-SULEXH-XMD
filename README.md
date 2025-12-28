@@ -8,7 +8,7 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
     <img src="https://readme-typing-svg.demolab.com?font=Ribeye&size=50&pause=1000&color=33ff00&center=true&width=910&height=100&lines=BUGFIXED-SULEXH;Multi+Device+Whatsapp+Bot;Coded+By+Professor" alt="Typing SVG" />
   </a> 
 </div> <!-- AUTOPLAY GIF --><div align="center">
-  <img src="assets/ezgif-8266ce9d87ea5094.gif" width="600" alt="Bugfixed Sulexh XMD Demo"/>
+  <img src="https://files.catbox.moe/wc3hy5.mp4" width="600" alt="Bugfixed Sulexh XMD Demo"/>
 </div><div align="center">
   <img src="https://img.shields.io/github/followers/mruniquehacker?style=for-the-badge&label=Followers" alt="Followers"/>
   <img src="https://img.shields.io/github/stars/mruniquehacker/Knightbot-MD?style=for-the-badge&label=Stars" alt="Stars"/>

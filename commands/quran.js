@@ -34,16 +34,23 @@ async function quranCommand(sock, chatId, message) {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
         const args = text.trim().split(/\s+/);
 
-        if (args.length < 2) {
-            await sock.sendMessage(chatId, { 
-                text: 'Usage: .quran <surah_number> <ayah_number or start-end>\nExample: .quran 2 255-265\nOr type .quran menu to see all surahs' 
-            }, { quoted: message });
+        // ✅ .quran → show surah list
+        if (args.length === 1) {
+            await sock.sendMessage(
+                chatId,
+                { text: `📖 Quran Surah List:\n\n${surahs.join('\n')}` },
+                { quoted: message }
+            );
             return;
         }
 
         // Handle menu
         if (args[1].toLowerCase() === 'menu') {
-            await sock.sendMessage(chatId, { text: `📖 Quran Surah List:\n\n${surahs.join('\n')}` }, { quoted: message });
+            await sock.sendMessage(
+                chatId,
+                { text: `📖 Quran Surah List:\n\n${surahs.join('\n')}` },
+                { quoted: message }
+            );
             return;
         }
 
@@ -54,7 +61,7 @@ async function quranCommand(sock, chatId, message) {
             return;
         }
 
-        // Parse ayah range
+        // Parse ayah range (NO LIMITS)
         let startAyah = 1;
         let endAyah = 1;
         if (args[2]) {
@@ -62,9 +69,14 @@ async function quranCommand(sock, chatId, message) {
             startAyah = parseInt(ayahRange[0], 10);
             endAyah = ayahRange[1] ? parseInt(ayahRange[1], 10) : startAyah;
 
-            if (isNaN(startAyah) || isNaN(endAyah) || startAyah > endAyah) {
+            if (isNaN(startAyah) || isNaN(endAyah)) {
                 await sock.sendMessage(chatId, { text: '❌ Invalid ayah range.' }, { quoted: message });
                 return;
+            }
+
+            // ✅ auto-fix reversed ranges instead of blocking
+            if (startAyah > endAyah) {
+                [startAyah, endAyah] = [endAyah, startAyah];
             }
         }
 
@@ -92,7 +104,7 @@ async function quranCommand(sock, chatId, message) {
             fullText += '\n――――――――――――\n📖 BY SHEIKH SULEIMAN ALMAARUF\n🐾 BUGFIXED SULEXH';
 
             await sock.sendMessage(chatId, { text: fullText.trim() }, { quoted: message });
-            await new Promise(r => setTimeout(r, 500)); // small delay to avoid flood
+            await new Promise(r => setTimeout(r, 500));
         }
 
     } catch (err) {
